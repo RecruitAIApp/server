@@ -21,6 +21,6 @@ export const validate = (schema) => (req, res, next) => {
 };
 
 /**
- * usage -> gwa el router : 
+ * usage -> in the router file : 
  * router.post('/apply', validate(applySchema), applicationController.apply);
  */
