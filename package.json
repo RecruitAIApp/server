@@ -1,0 +1,23 @@
+{
+  "name": "recruit-ai-server",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node --watch server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "bullmq": "^5.77.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "helmet": "^8.1.0",
+    "ioredis": "^5.10.1",
+    "joi": "^18.2.1",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^9.6.2",
+    "morgan": "^1.10.1"
+  }
+}
