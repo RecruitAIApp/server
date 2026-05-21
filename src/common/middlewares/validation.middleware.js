@@ -19,3 +19,8 @@ export const validate = (schema) => (req, res, next) => {
     });
   }
 };
+
+/**
+ * usage -> gwa el controller : 
+ * router.post('/apply', validate(applySchema), applicationController.apply);
+ */
