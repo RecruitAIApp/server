@@ -28,6 +28,12 @@ export const config = {
       apiKey: process.env.GROQ_API_KEY,
       defaultModel: process.env.GROQ_DEFAULT_MODEL || "llama-3.3-70b-versatile",
     },
+    openrouter: {
+      apiKey: process.env.OPENROUTER_API_KEY,
+      defaultModel:
+        process.env.OPENROUTER_DEFAULT_MODEL ||
+        "nvidia/nemotron-3-super-120b-a12b:free",
+    },
     defaults: {
       temperature: 0.7,
       maxOutputTokens: 2048,

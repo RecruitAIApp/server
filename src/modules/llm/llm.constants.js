@@ -1,6 +1,7 @@
 export const PROVIDERS = Object.freeze({
   GOOGLE: "google",
   GROQ: "groq",
+  OPENROUTER: "openrouter",
 });
 
 export const SUPPORTED_PROVIDERS = Object.freeze(Object.values(PROVIDERS));
@@ -19,9 +20,15 @@ export const GROQ_MODELS = Object.freeze([
   "openai/gpt-oss-20b",
 ]);
 
+export const OPENROUTER_MODELS = Object.freeze([
+  "nvidia/nemotron-3-super-120b-a12b:free",
+  "google/gemma-4-31b-it:free",
+]);
+
 export const MODELS_BY_PROVIDER = Object.freeze({
   [PROVIDERS.GOOGLE]: GOOGLE_MODELS,
   [PROVIDERS.GROQ]: GROQ_MODELS,
+  [PROVIDERS.OPENROUTER]: OPENROUTER_MODELS,
 });
 
 export const LIMITS = Object.freeze({

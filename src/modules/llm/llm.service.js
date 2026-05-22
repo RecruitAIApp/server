@@ -9,6 +9,7 @@ import {
 } from "./llm.constants.js";
 import { factoryConfigSchema, validate } from "./llm.validators.js";
 import { LLMConfigError } from "./llm.errors.js";
+import { ChatOpenRouter } from "@langchain/openrouter";
 
 const PROVIDER_BUILDERS = Object.freeze({
   [PROVIDERS.GOOGLE](merged) {
@@ -23,6 +24,15 @@ const PROVIDER_BUILDERS = Object.freeze({
 
   [PROVIDERS.GROQ](merged) {
     return new ChatGroq({
+      model: merged.model,
+      apiKey: merged.apiKey,
+      temperature: merged.temperature,
+      maxTokens: merged.maxOutputTokens,
+      maxRetries: merged.maxRetries,
+    });
+  },
+  [PROVIDERS.OPENROUTER](merged) {
+    return new ChatOpenRouter({
       model: merged.model,
       apiKey: merged.apiKey,
       temperature: merged.temperature,

@@ -55,7 +55,9 @@ export const messagesInputSchema = Joi.alternatives()
     Joi.array()
       .items(
         Joi.object({
-          role: Joi.string().valid(...Object.values(ROLES)).required(),
+          role: Joi.string()
+            .valid(...Object.values(ROLES))
+            .required(),
           content: Joi.string()
             .trim()
             .allow("")
@@ -70,18 +72,21 @@ export const messagesInputSchema = Joi.alternatives()
   .required()
   .label("MessagesInput");
 
-export const ChatHistorySchema = Joi.array(
-  Joi.object({
-    role: Joi.string().valid(...Object.values(ROLES)).required(),
-    content: Joi.string()
-      .trim()
-      .allow("")
-      .max(LIMITS.USER_MESSAGE_MAX_LENGTH)
-      .required(),
-    tool_calls: Joi.array().items(Joi.object()).optional(),
-    tool_call_id: Joi.string().optional(),
-  }),
-)
+export const ChatHistorySchema = Joi.array()
+  .items(
+    Joi.object({
+      role: Joi.string()
+        .valid(...Object.values(ROLES))
+        .required(),
+      content: Joi.string()
+        .trim()
+        .allow("")
+        .max(LIMITS.USER_MESSAGE_MAX_LENGTH)
+        .required(),
+      tool_calls: Joi.array().items(Joi.object()).optional(),
+      tool_call_id: Joi.string().optional(),
+    }),
+  )
   .required()
   .label("ChatHistory");
 
