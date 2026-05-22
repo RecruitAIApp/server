@@ -2,6 +2,7 @@ import {
   HumanMessage,
   SystemMessage,
   AIMessage,
+  ToolMessage,
 } from "@langchain/core/messages";
 import {
   LLMProviderError,
@@ -23,14 +24,22 @@ function toMessages(input) {
     return [new HumanMessage(input)];
   }
 
-  return input.map(({ role, content }) => {
+  return input.map(({ role, content, tool_calls, tool_call_id }) => {
     switch (role) {
       case ROLES.SYSTEM:
         return new SystemMessage(content);
       case ROLES.HUMAN:
         return new HumanMessage(content);
       case ROLES.AI:
-        return new AIMessage(content);
+        return new AIMessage({
+          content,
+          tool_calls: tool_calls || [],
+        });
+      case ROLES.TOOL:
+        return new ToolMessage({
+          content,
+          tool_call_id,
+        });
       default:
         throw new LLMValidationError(`Unknown message role: "${role}"`);
     }
@@ -70,6 +79,7 @@ export class LLMClient {
 
       return {
         content: response.content,
+        toolCalls: response.tool_calls || [],
         meta: {
           provider: this.#provider,
           model: this.#modelName,
@@ -103,6 +113,22 @@ export class LLMClient {
           model: this.#modelName,
         },
       };
+    } catch (err) {
+      throw this.#wrapError(err);
+    }
+  }
+
+  bindTools(tools) {
+    if (!Array.isArray(tools)) {
+      throw new LLMConfigError("bindTools() expects an array of tools.");
+    }
+
+    try {
+      const boundModel = this.#model.bindTools(tools);
+      return new LLMClient(boundModel, {
+        provider: this.#provider,
+        modelName: this.#modelName,
+      });
     } catch (err) {
       throw this.#wrapError(err);
     }
@@ -155,20 +181,30 @@ export class ChatSession {
   }
 
   async send(userMessage) {
-    const validatedMessage = validate(userMessageSchema, userMessage);
+    let validatedMessage = null;
 
-    const messages = this.#buildMessages(validatedMessage);
+    if (userMessage !== undefined && userMessage !== null) {
+      validatedMessage = validate(userMessageSchema, userMessage);
+      this.#history.push(new HumanMessage(validatedMessage));
+    }
+
+    const messages = this.#buildMessages();
 
     try {
       const model = this.#client._getModel();
       const response = await model.invoke(messages);
 
-      this.#history.push(new HumanMessage(validatedMessage));
-      this.#history.push(new AIMessage(response.content));
+      this.#history.push(
+        new AIMessage({
+          content: response.content,
+          tool_calls: response.tool_calls || [],
+        }),
+      );
       this.#trimHistory();
 
       return {
         content: response.content,
+        toolCalls: response.tool_calls || [],
         meta: {
           provider: this.#client.provider,
           model: this.#client.modelName,
@@ -185,10 +221,22 @@ export class ChatSession {
   }
 
   getHistory() {
-    return this.#history.map((msg) => ({
-      role: msg._getType(),
-      content: msg.content,
-    }));
+    return this.#history.map((msg) => {
+      const res = {
+        role: msg._getType(),
+        content: msg.content,
+      };
+
+      if (msg instanceof AIMessage && msg.tool_calls?.length) {
+        res.tool_calls = msg.tool_calls;
+      }
+
+      if (msg instanceof ToolMessage) {
+        res.tool_call_id = msg.tool_call_id;
+      }
+
+      return res;
+    });
   }
 
   get historyLength() {
@@ -203,12 +251,24 @@ export class ChatSession {
     return this.#systemPrompt;
   }
 
+  addToolResponse(toolCallId, content) {
+    if (!toolCallId) {
+      throw new LLMSessionError("toolCallId is required for addToolResponse.");
+    }
+    this.#history.push(
+      new ToolMessage({
+        content: String(content),
+        tool_call_id: toolCallId,
+      }),
+    );
+  }
+
   loadHistory(history) {
     const validatedHistory = validate(ChatHistorySchema, history);
     this.#history = toMessages(validatedHistory);
   }
 
-  #buildMessages(userMessage) {
+  #buildMessages() {
     const messages = [];
 
     if (this.#systemPrompt) {
@@ -216,7 +276,6 @@ export class ChatSession {
     }
 
     messages.push(...this.#history);
-    messages.push(new HumanMessage(userMessage));
 
     return messages;
   }

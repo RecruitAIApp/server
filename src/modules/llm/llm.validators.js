@@ -54,14 +54,16 @@ export const messagesInputSchema = Joi.alternatives()
     Joi.string().trim().min(1).max(LIMITS.USER_MESSAGE_MAX_LENGTH),
     Joi.array()
       .items(
-        Joi.array().ordered(
-          Joi.string().valid(...Object.values(ROLES)).required(),
-          Joi.string()
+        Joi.object({
+          role: Joi.string().valid(...Object.values(ROLES)).required(),
+          content: Joi.string()
             .trim()
-            .min(1)
+            .allow("")
             .max(LIMITS.USER_MESSAGE_MAX_LENGTH)
             .required(),
-        ),
+          tool_calls: Joi.array().items(Joi.object()).optional(),
+          tool_call_id: Joi.string().optional(),
+        }),
       )
       .min(1),
   )
@@ -73,9 +75,11 @@ export const ChatHistorySchema = Joi.array(
     role: Joi.string().valid(...Object.values(ROLES)).required(),
     content: Joi.string()
       .trim()
-      .min(1)
+      .allow("")
       .max(LIMITS.USER_MESSAGE_MAX_LENGTH)
       .required(),
+    tool_calls: Joi.array().items(Joi.object()).optional(),
+    tool_call_id: Joi.string().optional(),
   }),
 )
   .required()

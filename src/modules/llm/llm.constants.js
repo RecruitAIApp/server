@@ -41,4 +41,5 @@ export const ROLES = Object.freeze({
   SYSTEM: "system",
   HUMAN: "human",
   AI: "ai",
+  TOOL: "tool",
 });
