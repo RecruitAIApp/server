@@ -38,6 +38,7 @@ pids
 lib-cov
 coverage
 *.lcov
+.agents
 
 # Editor/IDE configs
 .idea/
@@ -49,3 +50,4 @@ coverage
 *.sw?
 .DS_Store
 Thumbs.db
+skills-lock.json
