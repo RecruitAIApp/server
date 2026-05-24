@@ -1,107 +1,89 @@
-import mongoose from "mongoose";
+import { Schema, model, Types } from "mongoose";
 
-const applicationSchema = new mongoose.Schema(
+const jobSchema = new Schema(
   {
-    candidateId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-      index: true,
-    },
-
-    companyId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Company",
-      required: true,
-      index: true,
-    },
-
-    jobId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Job",
-      required: true,
-      index: true,
-    },
-
-    appliedResume: {
-      url: String,
-
-      publicId: String,
-
-      fileName: String,
-    },
-
-    stage: {
+    title: {
       type: String,
-      enum: [
-        "applied",
-        "screening",
-        "shortlisted",
-        "interview",
-        "rejected",
-        "hired",
-      ],
-      default: "applied",
-      index: true,
+      required: [true, "Job title is required"],
+      trim: true,
     },
-
-    // aiScreening: {
-    //   status: {
-    //     type: String,
-    //     enum: [
-    //       "queued",
-    //       "processing",
-    //       "completed",
-    //       "failed",
-    //     ],
-    //     default: "queued",
-    //   },
-
-    //   score: Number,
-
-    //   matchedSkills: [String],
-
-    //   missingSkills: [String],
-
-    //   summary: String,
-
-    //   processedAt: Date,
-    // },
-
-    notes: [
-      {
-        authorId: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "User",
-        },
-
-        content: String,
-
-        createdAt: {
-          type: Date,
-          default: Date.now,
-        },
+    description: {
+      type: String,
+      required: [true, "Job description is required"],
+      trim: true,
+    },
+    requirements: {
+      type: [String],
+      required: [true, "Requirements are required"],
+      default: [],
+    },
+    salaryRange: {
+      min: {
+        type: Number,
+        required: [true, "Minimum salary is required"],
+        min: 0,
       },
-    ],
+      max: {
+        type: Number,
+        required: [true, "Maximum salary is required"],
+        min: 0,
+      },
+    },
+    location: {
+      type: String,
+      required: [true, "Location is required"],
+      trim: true,
+    },
+    company: {
+      type: Types.ObjectId,
+      ref: "Company",
+      required: [true, "Company is required"],
+    },
+    postedBy: {
+      type: Types.ObjectId,
+      ref: "User",
+      required: [true, "Posted by is required"],
+    },
+    jobType: {
+      type: String,
+      enum: ["remote", "onsite", "hybrid"],
+      required: [true, "Job type is required"],
+    },
+    employmentType: {
+      type: String,
+      enum: ["full-time", "part-time", "contract", "internship", "freelance"],
+      required: [true, "Employment type is required"],
+    },
+    experienceLevel: {
+      type: String,
+      enum: ["entry", "mid", "senior", "lead", "executive"],
+      default: "mid",
+    },
+    skills: {
+      type: [String],
+      default: [],
+    },
+    status: {
+      type: String,
+      enum: ["open", "closed", "pending"],
+      default: "open",
+    },
+    applicationDeadline: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,
-  },
+  }
 );
 
-applicationSchema.index(
-  {
-    candidateId: 1,
-    jobId: 1,
-  },
-  {
-    unique: true,
-  },
-);
+jobSchema.index({ company: 1 });
+jobSchema.index({ postedBy: 1 });
+jobSchema.index({ status: 1 });
+jobSchema.index({ jobType: 1 });
+jobSchema.index({ employmentType: 1 });
+jobSchema.index({ location: 1 });
+jobSchema.index({ title: "text", description: "text", skills: "text" });
 
-applicationSchema.index({
-  jobId: 1,
-  stage: 1,
-});
-
-export default mongoose.model("Application", applicationSchema);
+export default model("Job", jobSchema);
