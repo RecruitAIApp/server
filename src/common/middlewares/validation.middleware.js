@@ -1,6 +1,5 @@
 export const validate = (schema) => (req, res, next) => {
   try {
-    // parse the request data with the schema
     schema.parse({
       body: req.body,
       query: req.query,
@@ -8,7 +7,6 @@ export const validate = (schema) => (req, res, next) => {
     });
     next();
   } catch (error) {
-    // return the error with 400 status code
     return res.status(400).json({
       success: false,
       message: 'Validation Error',
@@ -19,8 +17,3 @@ export const validate = (schema) => (req, res, next) => {
     });
   }
 };
-
-/**
- * usage -> in the router file : 
- * router.post('/apply', validate(applySchema), applicationController.apply);
- */
