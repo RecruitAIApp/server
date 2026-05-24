@@ -206,6 +206,27 @@ class AuthController {
       });
     }
   }
+
+  async acceptHRInvite(req, res, next) {
+    try {
+      const { token, password } = req.validatedBody;
+      const result = await authService.acceptHRInviteService(token, password);
+
+      return res.status(200).json({
+        success: true,
+        message: result.message,
+        user: result.user,
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+      });
+    } catch (err) {
+      const statusCode = err.status || 400;
+      return res.status(statusCode).json({
+        success: false,
+        message: err.message || "Failed to accept HR invitation.",
+      });
+    }
+  }
 }
 
 export default new AuthController();

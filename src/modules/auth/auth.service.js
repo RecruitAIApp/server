@@ -332,6 +332,86 @@ class AuthService {
     await profile.save();
     return profile;
   }
+
+  async acceptHRInviteService(token, password) {
+    const crypto = await import("crypto");
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+    const HRInvitation = (await import("../company/hrInvitation.model.js")).default;
+    const invitation = await HRInvitation.findOne({ token: hashedToken });
+
+    if (!invitation) {
+      throw createError(404, "Invalid invitation token.");
+    }
+
+    if (invitation.accepted) {
+      throw createError(400, "Invitation has already been accepted.");
+    }
+
+    if (invitation.expiresAt < new Date()) {
+      throw createError(400, "Invitation has expired.");
+    }
+
+    let user = await User.findOne({ email: invitation.email });
+    let created = false;
+
+    if (!user) {
+      if (!password) {
+        throw createError(400, "Password is required to create a new account.");
+      }
+      if (password.length < 8) {
+        throw createError(400, "Password must be at least 8 characters long.");
+      }
+
+      user = new User({
+        email: invitation.email,
+        password,
+        role: "employer",
+        status: "active",
+        isActive: true,
+      });
+
+      await user.save();
+      created = true;
+    } else {
+      if (user.role !== "employer") {
+        user.role = "employer";
+        await user.save();
+      }
+
+      const EmployerProfile = (await import("./employerProfile.model.js")).default;
+      const existingProfile = await EmployerProfile.findOne({
+        userId: user._id,
+        companyId: invitation.companyId,
+      });
+
+      if (existingProfile) {
+        throw createError(400, "You are already a member of this company.");
+      }
+    }
+
+    const EmployerProfile = (await import("./employerProfile.model.js")).default;
+    await EmployerProfile.create({
+      userId: user._id,
+      companyId: invitation.companyId,
+      role: "hr",
+    });
+
+    invitation.accepted = true;
+    invitation.acceptedAt = new Date();
+    await invitation.save();
+
+    const { accessToken, refreshToken } = await this.generateTokens(user);
+
+    return {
+      message: created
+        ? "Account created and joined company successfully."
+        : "Joined company successfully.",
+      user: user.toJSON(),
+      accessToken,
+      refreshToken,
+    };
+  }
 }
 
 export default new AuthService();

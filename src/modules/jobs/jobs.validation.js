@@ -1,4 +1,5 @@
 import Joi from "joi";
+import { isValidId } from "../../utils/globalVariables.js";
 
 const salaryRangeSchema = Joi.object({
   min: Joi.number().min(0).required().messages({
@@ -41,13 +42,15 @@ export const createJobSchema = Joi.object({
       .valid("entry", "mid", "senior", "lead", "executive")
       .optional(),
     skills: Joi.array().items(Joi.string()).optional(),
-    applicationDeadline: Joi.string().isoDate().optional(),
+    applicationDeadline: Joi.date().iso().min("now").optional().messages({
+      "date.min": "Application deadline must be in the future",
+    }),
   }).required(),
 });
 
 export const updateJobSchema = Joi.object({
   params: Joi.object({
-    id: Joi.string().min(24).required().messages({
+    id: Joi.custom(isValidId).required().messages({
       "string.min": "Invalid job ID",
     }),
   }).required(),
@@ -66,7 +69,9 @@ export const updateJobSchema = Joi.object({
       .optional(),
     skills: Joi.array().items(Joi.string()).optional(),
     status: Joi.string().valid("open", "closed", "pending").optional(),
-    applicationDeadline: Joi.string().isoDate().optional(),
+    applicationDeadline: Joi.date().iso().min("now").optional().messages({
+      "date.min": "Application deadline must be in the future",
+    }),
   })
     .required()
     .external(async (data) => {
@@ -78,7 +83,7 @@ export const updateJobSchema = Joi.object({
 
 export const jobIdSchema = Joi.object({
   params: Joi.object({
-    id: Joi.string().min(24).required().messages({
+    id: Joi.custom(isValidId).required().messages({
       "string.min": "Invalid job ID",
     }),
   }).required(),

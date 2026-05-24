@@ -4,6 +4,8 @@ import helmet from "helmet";
 import morgan from "morgan";
 import dotenv from "dotenv";
 import authRouter from "./src/modules/auth/auth.routes.js";
+import companyRouter from "./src/modules/company/company.routes.js";
+import jobsRouter from "./src/modules/jobs/jobs.routes.js";
 
 dotenv.config();
 const app = express();
@@ -27,6 +29,8 @@ app.get("/health", (req, res) => {
 });
 
 app.use("/api/auth", authRouter);
+app.use("/api/companies", companyRouter);
+app.use("/api/jobs", jobsRouter);
 
 app.use((req, res) => {
   res.status(404).json({

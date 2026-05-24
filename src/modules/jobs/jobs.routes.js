@@ -5,6 +5,7 @@ import {
   isEmployerOrHR,
   isJobOwner,
   isCompanyOwnerOrHR,
+  isJobDeleter
 } from "../../common/middlewares/permissions.middleware.js";
 import {
   createJobSchema,
@@ -46,7 +47,7 @@ router.delete(
   "/:id",
   authenticate,
   isEmployerOrHR,
-  isJobOwner,
+  isJobDeleter,
   validate(jobIdSchema),
   jobController.deleteJob
 );

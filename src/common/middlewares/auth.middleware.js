@@ -27,6 +27,7 @@ export const protect = async (req, res, next) => {
     ensureAccountAccess(user);
 
     req.user = {
+      id: user._id.toString(),
       userId: user._id.toString(),
       role: user.role,
       status: user.status,
@@ -40,3 +41,5 @@ export const protect = async (req, res, next) => {
     });
   }
 };
+
+export const authenticate = protect;

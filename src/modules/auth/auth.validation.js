@@ -55,3 +55,13 @@ export const validateBody = (schema) => {
     next();
   };
 };
+
+export const acceptHRInviteSchema = Joi.object({
+  token: Joi.string().required().messages({
+    "any.required": "Invitation token is required.",
+    "string.empty": "Invitation token is required.",
+  }),
+  password: Joi.string().min(8).optional().messages({
+    "string.min": "Password must be at least 8 characters long.",
+  }),
+});

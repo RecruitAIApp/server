@@ -4,28 +4,31 @@ import { validate } from "../../common/middlewares/validation.middleware.js";
 import {
   isCompanyOwner,
   isEmployer,
-} from "../../common/middlewares/permision.middleware.js";
+} from "../../common/middlewares/permissions.middleware.js";
 import {
   createCompanySchema,
   updateCompanySchema,
   companyIdSchema,
   addHRSchema,
+  inviteHRSchema,
 } from "./company.validation.js";
 import { authenticate } from "../../common/middlewares/auth.middleware.js";
-import { cloudUpload } from "../../config/multer.config.js"; // ✅ was missing in your file
+import { cloudUpload } from "../../config/multer.config.js";
+import rateLimit from "express-rate-limit";
+const inviteLimit = rateLimit({ windowMs: 60 * 60 * 1000, max: 10 });
 
 const router = Router();
 
-router.get("/:id", validate(companyIdSchema), companyController.getCompany);
-
 router.get("/my", authenticate, isEmployer, companyController.getMyCompanies);
+
+router.get("/:id", validate(companyIdSchema), companyController.getCompany);
 
 router.post(
   "/",
   authenticate,
   isEmployer,
   validate(createCompanySchema),
-  companyController.createCompany
+  companyController.createCompany,
 );
 
 router.put(
@@ -34,7 +37,7 @@ router.put(
   isEmployer,
   isCompanyOwner,
   validate(updateCompanySchema),
-  companyController.updateCompany
+  companyController.updateCompany,
 );
 
 router.delete(
@@ -43,7 +46,7 @@ router.delete(
   isEmployer,
   isCompanyOwner,
   validate(companyIdSchema),
-  companyController.deleteCompany
+  companyController.deleteCompany,
 );
 
 router.put(
@@ -52,16 +55,17 @@ router.put(
   isEmployer,
   isCompanyOwner,
   cloudUpload(["image/png", "image/jpeg", "application/pdf"]).single("license"),
-  companyController.addLicenses
+  companyController.addLicenses,
 );
 
 router.post(
-  "/:id/hrs",
+  "/:id/invite-hr",
   authenticate,
   isEmployer,
   isCompanyOwner,
-  validate(addHRSchema),
-  companyController.addHR
+  inviteLimit,
+  validate(inviteHRSchema),
+  companyController.inviteHR,
 );
 
 router.delete(
@@ -69,7 +73,6 @@ router.delete(
   authenticate,
   isEmployer,
   isCompanyOwner,
-  companyController.removeHR
+  companyController.removeHR,
 );
-
 export default router;
