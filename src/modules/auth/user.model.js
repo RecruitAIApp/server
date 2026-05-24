@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import bcrypt from "bcryptjs";
+import { hashPassword, comparePassword } from "../../utils/hash.js";
 
 const userSchema = new mongoose.Schema(
   {
@@ -9,7 +9,6 @@ const userSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
       trim: true,
-      index: true,
       match: [/^\S+@\S+\.\S+$/, "Invalid email"],
     },
 
@@ -24,19 +23,32 @@ const userSchema = new mongoose.Schema(
       type: String,
       enum: ["candidate", "employer", "admin"],
       required: true,
-      index: true,
+    },
+
+    status: {
+      type: String,
+      enum: ["active", "inactive", "suspended", "pending_approval"],
+      default: "active",
     },
 
     isActive: {
       type: Boolean,
       default: true,
-      index: true,
     },
 
     isBanned: {
       type: Boolean,
       default: false,
-      index: true,
+    },
+
+    passwordResetToken: {
+      type: String,
+      select: false,
+    },
+
+    passwordResetExpires: {
+      type: Date,
+      select: false,
     },
 
     refreshTokenVersion: {
@@ -51,20 +63,25 @@ const userSchema = new mongoose.Schema(
   },
 );
 
+userSchema.index({ email: 1 }, { unique: true });
+userSchema.index({ role: 1, status: 1 });
+userSchema.index({ role: 1, isActive: 1, isBanned: 1 });
+
 userSchema.pre("save", async function () {
   if (!this.isModified("password")) return;
-
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
+  this.password = await hashPassword(this.password);
 });
 
 userSchema.methods.comparePassword = async function (candidatePassword) {
-  return bcrypt.compare(candidatePassword, this.password);
+  return comparePassword(candidatePassword, this.password);
 };
 
 userSchema.methods.toJSON = function () {
   const obj = this.toObject();
   delete obj.password;
+  delete obj.passwordResetToken;
+  delete obj.passwordResetExpires;
+  delete obj.__v;
   return obj;
 };
 

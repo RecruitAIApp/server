@@ -3,11 +3,16 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import dotenv from "dotenv";
+import authRouter from "./src/modules/auth/auth.routes.js";
 
 dotenv.config();
 const app = express();
 
-app.use(cors());
+app.use(
+  cors({
+    origin: process.env.CLIENT_URL || "http://localhost:5173",
+  }),
+);
 app.use(helmet());
 app.use(morgan("dev"));
 app.use(express.json());
@@ -21,9 +26,7 @@ app.get("/health", (req, res) => {
   });
 });
 
-// TODO: routers will be added here later
-// app.use('/api/v1/auth', authRouter);
-// app.use('/api/v1/applications', applicationRouter);
+app.use("/api/auth", authRouter);
 
 app.use((req, res) => {
   res.status(404).json({

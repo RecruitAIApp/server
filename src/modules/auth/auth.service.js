@@ -1,0 +1,338 @@
+import jwt from "jsonwebtoken";
+import User from "./user.model.js";
+import CandidateProfile from "./candidateProfile.model.js";
+import config from "../../config/index.js";
+import { createError } from "../../utils/error.js";
+import { sendEmail } from "../../utils/email.js";
+import { generateResetToken, hashResetToken } from "../../utils/hash.js";
+
+const GENERIC_AUTH_ERROR = "Invalid email or password.";
+const GENERIC_REFRESH_ERROR = "Invalid or expired refresh token.";
+
+export function ensureAccountAccess(user) {
+  if (!user) {
+    throw createError(404, "User not found.");
+  }
+
+  if (user.isBanned || user.status === "suspended") {
+    throw createError(403, "Account is banned. Please contact support.");
+  }
+
+  if (!user.isActive || user.status === "inactive") {
+    throw createError(403, "Account is inactive. Please contact support.");
+  }
+
+  if (user.status === "pending_approval") {
+    throw createError(
+      403,
+      "Account is pending approval. Please wait for admin review.",
+    );
+  }
+
+  if (user.status !== "active") {
+    throw createError(403, "Account is not available. Please contact support.");
+  }
+}
+
+class AuthService {
+  async resolveUser(userOrUserId) {
+    if (userOrUserId && typeof userOrUserId === "object" && userOrUserId._id) {
+      return userOrUserId;
+    }
+
+    return User.findById(userOrUserId);
+  }
+
+  verifyToken(token, expectedType = "access") {
+    if (!token) {
+      throw createError(401, GENERIC_REFRESH_ERROR);
+    }
+
+    const secret =
+      expectedType === "refresh"
+        ? config.jwt.refreshSecret
+        : config.jwt.secret;
+
+    try {
+      const decoded = jwt.verify(token, secret);
+
+      if (decoded.type !== expectedType) {
+        throw createError(401, "Invalid token type.");
+      }
+
+      return decoded;
+    } catch (err) {
+      if (err.status) throw err;
+      throw createError(401, GENERIC_REFRESH_ERROR);
+    }
+  }
+
+  async generateTokens(userOrUserId) {
+    const user = await this.resolveUser(userOrUserId);
+    if (!user) {
+      throw createError(404, "User not found.");
+    }
+
+    const accessToken = jwt.sign(
+      { userId: user._id, role: user.role, type: "access" },
+      config.jwt.secret,
+      { expiresIn: config.jwt.accessExpiresIn },
+    );
+
+    const refreshToken = jwt.sign(
+      { userId: user._id, version: user.refreshTokenVersion, type: "refresh" },
+      config.jwt.refreshSecret,
+      { expiresIn: config.jwt.refreshExpiresIn },
+    );
+
+    return { accessToken, refreshToken };
+  }
+
+  async register(email, password, role = "candidate") {
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    if (existingUser) {
+      throw createError(400, "Email is already registered.");
+    }
+
+    const isEmployer = role === "employer";
+    const user = new User({
+      email: email.toLowerCase(),
+      password,
+      role,
+      ...(isEmployer && {
+        status: "pending_approval",
+        isActive: false,
+      }),
+    });
+    await user.save();
+
+    if (isEmployer) {
+      return {
+        user: user.toJSON(),
+        accessToken: null,
+        refreshToken: null,
+        pendingApproval: true,
+      };
+    }
+
+    const { accessToken, refreshToken } = await this.generateTokens(user);
+    return { user: user.toJSON(), accessToken, refreshToken };
+  }
+
+  async login(email, password) {
+    const user = await User.findOne({ email: email.toLowerCase() }).select(
+      "+password",
+    );
+
+    if (!user) {
+      throw createError(401, GENERIC_AUTH_ERROR);
+    }
+
+    const isValid = await user.comparePassword(password);
+    if (!isValid) {
+      throw createError(401, GENERIC_AUTH_ERROR);
+    }
+
+    ensureAccountAccess(user);
+
+    user.lastLoginAt = new Date();
+    await user.save();
+
+    const { accessToken, refreshToken } = await this.generateTokens(user);
+    return { user: user.toJSON(), accessToken, refreshToken };
+  }
+
+  async refreshAccessToken(refreshToken) {
+    if (!refreshToken) {
+      throw createError(401, GENERIC_REFRESH_ERROR);
+    }
+
+    try {
+      const decoded = this.verifyToken(refreshToken, "refresh");
+      const user = await User.findById(decoded.userId);
+
+      if (!user) {
+        throw createError(401, GENERIC_REFRESH_ERROR);
+      }
+
+      ensureAccountAccess(user);
+
+      if (user.refreshTokenVersion !== decoded.version) {
+        throw createError(401, GENERIC_REFRESH_ERROR);
+      }
+
+      const { accessToken } = await this.generateTokens(user);
+      return { accessToken, user: user.toJSON() };
+    } catch (err) {
+      if (err.status) throw err;
+      throw createError(401, GENERIC_REFRESH_ERROR);
+    }
+  }
+
+  async logout(userId) {
+    const user = await User.findById(userId);
+    if (user) {
+      user.refreshTokenVersion += 1;
+      await user.save();
+    }
+    return { success: true };
+  }
+
+  async forgotPassword(email, originHeader = "http://localhost:5173") {
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      throw createError(404, "No user found with that email address.");
+    }
+
+    const resetToken = generateResetToken();
+
+    user.passwordResetToken = hashResetToken(resetToken);
+    user.passwordResetExpires = Date.now() + 60 * 60 * 1000;
+
+    await user.save();
+
+    const resetUrl = `${originHeader}/reset-password?token=${resetToken}&email=${user.email}`;
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
+        <h2 style="color: #1d4ed8; text-align: center;">MASAR Recruiter — Password Reset</h2>
+        <p>Hello,</p>
+        <p>We received a request to reset the password for your MASAR Recruiter account. Click the button below to continue:</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${resetUrl}" style="background-color: #1d4ed8; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold; display: inline-block;">Reset Password</a>
+        </div>
+        <p>Or you can copy and paste the following link into your browser:</p>
+        <p style="word-break: break-all; color: #666; font-size: 14px;">${resetUrl}</p>
+        <p>This link is valid for 1 hour. If you did not request this, you can safely ignore this email.</p>
+        <hr style="border: none; border-top: 1px solid #eee; margin-top: 30px;" />
+        <p style="font-size: 12px; color: #999; text-align: center;">MASAR Recruiter &copy; 2026. All rights reserved.</p>
+      </div>
+    `;
+
+    const sent = await sendEmail({
+      to: user.email,
+      subject: "MASAR Recruiter - Reset Your Password",
+      html,
+    });
+
+    if (!sent) {
+      user.passwordResetToken = undefined;
+      user.passwordResetExpires = undefined;
+      await user.save();
+      throw createError(
+        500,
+        "There was an error sending the reset email. Please try again later.",
+      );
+    }
+
+    return { success: true, message: "Password reset link sent to email." };
+  }
+
+  async resetPassword(token, newPassword) {
+    const user = await User.findOne({
+      passwordResetToken: hashResetToken(token),
+      passwordResetExpires: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      throw createError(
+        400,
+        "Password reset token is invalid or has expired.",
+      );
+    }
+
+    user.password = newPassword;
+    user.passwordResetToken = undefined;
+    user.passwordResetExpires = undefined;
+    user.refreshTokenVersion += 1;
+
+    await user.save();
+
+    return { success: true, message: "Password reset successful." };
+  }
+
+  async ensureCandidateUser(userId) {
+    const user = await User.findById(userId);
+    if (!user) {
+      throw createError(404, "User not found.");
+    }
+    ensureAccountAccess(user);
+    if (user.role !== "candidate") {
+      throw createError(
+        403,
+        "Candidate profile is only available for candidate accounts.",
+      );
+    }
+    return user;
+  }
+
+  async getProfile(userId) {
+    await this.ensureCandidateUser(userId);
+
+    let profile = await CandidateProfile.findOne({ userId });
+    if (!profile) {
+      profile = await CandidateProfile.create({ userId });
+    }
+    return profile;
+  }
+
+  calculateProfileCompletion(profile) {
+    let completion = 0;
+    const location = profile.basicInfo?.location;
+
+    if (
+      profile.basicInfo?.fullName &&
+      profile.basicInfo?.headline &&
+      (location?.country || location?.city)
+    ) {
+      completion += 25;
+    }
+    if (profile.skills?.length > 0) {
+      completion += 25;
+    }
+    if (profile.experience?.length > 0 || profile.education?.length > 0) {
+      completion += 25;
+    }
+    if (profile.resume?.url || profile.resume?.fileName) {
+      completion += 25;
+    }
+
+    return completion;
+  }
+
+  async updateProfile(userId, profileData) {
+    await this.ensureCandidateUser(userId);
+
+    let profile = await CandidateProfile.findOne({ userId });
+    if (!profile) {
+      profile = new CandidateProfile({ userId });
+    }
+
+    if (profileData.basicInfo) {
+      const existingBasic =
+        profile.basicInfo?.toObject?.() ?? profile.basicInfo ?? {};
+      profile.basicInfo = { ...existingBasic, ...profileData.basicInfo };
+    }
+    if (profileData.skills) {
+      profile.skills = profileData.skills;
+    }
+    if (profileData.experience) {
+      profile.experience = profileData.experience;
+    }
+    if (profileData.education) {
+      profile.education = profileData.education;
+    }
+    if (profileData.resume) {
+      const existingResume =
+        profile.resume?.toObject?.() ?? profile.resume ?? {};
+      profile.resume = { ...existingResume, ...profileData.resume };
+    }
+
+    profile.profileCompletion = this.calculateProfileCompletion(profile);
+    await profile.save();
+    return profile;
+  }
+}
+
+export default new AuthService();
+export const authService = new AuthService();
