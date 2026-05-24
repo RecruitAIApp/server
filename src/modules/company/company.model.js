@@ -79,6 +79,16 @@ const companySchema = new Schema(
     timestamps: true,
   },
 );
+companySchema.pre("save", function (next) {
+  if (this.isModified("name")) {
+    this.slug = this.name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)+/g, "");
+  }
+
+  next();
+});
 
 companySchema.index({ owner: 1 });
 companySchema.index({ name: "text", description: "text" });
