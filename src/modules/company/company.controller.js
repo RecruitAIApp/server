@@ -120,17 +120,14 @@ export const inviteHR = async (req, res, next) => {
       companyId,
       invitedBy,
       email,
-      origin:
-        req.headers.origin || req.headers.referer || "http://localhost:5173",
+      origin: req.headers.origin || req.headers.referer || "http://localhost:5173",
     });
 
-    return sendResponse(
-      res,
-      200,
-      true,
-      "HR invitation sent successfully",
-      result,
-    );
+    const message = result.addedDirectly
+      ? "HR member added directly and notified by email"
+      : "HR invitation sent successfully";
+
+    return sendResponse(res, 200, true, message, { email: result.email });
   } catch (error) {
     next(error);
   }

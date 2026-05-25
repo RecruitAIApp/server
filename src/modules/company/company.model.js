@@ -28,7 +28,7 @@ const companySchema = new Schema(
       ref: "User", // references User directly
       required: [true, "Company owner is required"],
     },
-    HRs:{
+    HRs: {
       type: [Types.ObjectId],
       ref: "User",
       default: [],
@@ -78,18 +78,18 @@ const companySchema = new Schema(
     timestamps: true,
   },
 );
-companySchema.pre("save", function (next) {
+companySchema.pre("save", function () {
   if (this.isModified("name")) {
     this.slug = this.name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)+/g, "");
   }
-
-  next();
 });
-
 companySchema.index({ owner: 1 });
-companySchema.index({ name: 1 }, { unique: true, collation: { locale: "en", strength: 2 } });
+companySchema.index(
+  { name: 1 },
+  { unique: true, collation: { locale: "en", strength: 2 } },
+);
 
 export default model("Company", companySchema);

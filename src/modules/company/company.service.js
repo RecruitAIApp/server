@@ -6,6 +6,7 @@ import User from "../auth/user.model.js";
 import HRInvitation from "./hrInvitation.model.js";
 import { sendEmail } from "../../utils/email.js";
 import crypto from "crypto";
+import { buildInvitationEmail , buildAddedDirectlyEmail} from "../../utils/invitation.templetes.js";
 
 export const createCompanyService = async (data, ownerId) => {
   const existing = await Company.findOne({
@@ -77,7 +78,7 @@ export const getCompanyByIdService = async (id) => {
   return company;
 };
 
-export const getMyCompaniesService = async (ownerId) => {
+export const getMyCompaniesService = async (ownerId) => { 
   const profiles = await EmployerProfile.find({ userId: ownerId }).select("companyId");
   const companyIds = profiles.map(p => p.companyId);
   return Company.find({ _id: { $in: companyIds }, status: { $ne: "inactive" } }).sort({ createdAt: -1 });
@@ -193,7 +194,7 @@ export const inviteHRService = async ({
 }) => {
   const normalizedEmail = email.toLowerCase().trim();
 
-  // 1. Check if the company exists
+  // 1. Check company exists
   const company = await Company.findById(companyId);
   if (!company) {
     const error = new Error("Company not found");
@@ -201,21 +202,63 @@ export const inviteHRService = async ({
     throw error;
   }
 
-  // 2. Check if user is already a member of this company (owner or hr)
+  // 2. Get inviter info
+  const inviter = await User.findById(invitedBy);
+  const inviterName = inviter?.email?.split("@")[0] || "Company Owner";
+
+  // 3. Check if a user with this email already exists on the platform
   const existingUser = await User.findOne({ email: normalizedEmail });
+
   if (existingUser) {
+    // 3a. Check they aren't already a member of this company
     const existingProfile = await EmployerProfile.findOne({
       userId: existingUser._id,
       companyId,
     });
+
     if (existingProfile) {
       const error = new Error("User is already a member of this company");
       error.statusCode = 400;
       throw error;
     }
+
+    // 3b. User exists but is not yet in this company — add them directly as HR
+    await EmployerProfile.create({
+      userId: existingUser._id,
+      companyId,
+      role: "hr",
+    });
+
+    // 3c. Send informational email (no token, no accept link needed)
+    const html = buildAddedDirectlyEmail({ inviterName, company });
+
+    const emailSent = await sendEmail({
+      to: normalizedEmail,
+      subject: `You've been added to ${company.name} on MASAR Recruiter`,
+      html,
+    });
+
+    if (!emailSent) {
+      // Roll back the profile creation if email fails
+      await EmployerProfile.findOneAndDelete({
+        userId: existingUser._id,
+        companyId,
+        role: "hr",
+      });
+      const error = new Error("Failed to send notification email");
+      error.statusCode = 500;
+      throw error;
+    }
+
+    return {
+      email: normalizedEmail,
+      addedDirectly: true, // let the controller know which path was taken
+    };
   }
 
-  // 3. Prevent duplicate active invites (accepted: false, expiresAt > Date.now())
+  // 4. User does NOT exist — send a standard invitation link
+
+  // 4a. Prevent duplicate active invites
   const activeInvite = await HRInvitation.findOne({
     companyId,
     email: normalizedEmail,
@@ -231,17 +274,14 @@ export const inviteHRService = async ({
     throw error;
   }
 
-  // 4. Generate secure token
+  // 4b. Generate secure token
   const rawToken = crypto.randomBytes(32).toString("hex");
-  const hashedToken = crypto
-    .createHash("sha256")
-    .update(rawToken)
-    .digest("hex");
+  const hashedToken = crypto.createHash("sha256").update(rawToken).digest("hex");
 
-  // 5. Set expiration date (e.g. 48 hours)
+  // 4c. Set expiration (48 hours)
   const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
 
-  // 6. Save invitation
+  // 4d. Save invitation record
   const invitation = await HRInvitation.create({
     companyId,
     invitedBy,
@@ -250,39 +290,9 @@ export const inviteHRService = async ({
     expiresAt,
   });
 
-  // 7. Get inviter's user information
-  const inviter = await User.findById(invitedBy);
-  const inviterName = inviter?.name || inviter?.email?.split("@")[0] || "Company Owner";
-
-  // 8. Build invitation URL
+  // 4e. Send invite email with accept link
   const inviteUrl = `${origin}/accept-invite?token=${rawToken}`;
-
-  // 9. Send invitation email using sendEmail utility
-  const html = `
-    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);">
-      <h2 style="color: #2563eb; text-align: center; margin-bottom: 24px; font-weight: 700;">MASAR Recruiter — Team Invitation</h2>
-      <p style="font-size: 16px; color: #334155; line-height: 1.6;">Hello,</p>
-      <p style="font-size: 16px; color: #334155; line-height: 1.6;">
-        <strong>${inviterName}</strong> has invited you to join <strong>${company.name}</strong> as an HR team member on MASAR Recruiter.
-      </p>
-      <div style="text-align: center; margin: 35px 0;">
-        <a href="${inviteUrl}" style="background-color: #2563eb; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; display: inline-block; transition: background-color 0.2s; box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);">Accept Invitation</a>
-      </div>
-      <p style="font-size: 14px; color: #e11d48; font-weight: 500; margin-top: 20px; text-align: center;">
-        ⚠️ This invitation is valid for 48 hours and will expire on ${expiresAt.toLocaleString()}.
-      </p>
-      <p style="font-size: 14px; color: #64748b; line-height: 1.5; margin-top: 30px;">
-        If the button above does not work, please copy and paste the following link into your browser:
-      </p>
-      <p style="word-break: break-all; color: #2563eb; font-size: 14px; background-color: #f8fafc; padding: 12px; border-radius: 6px; border: 1px solid #f1f5f9;">
-        ${inviteUrl}
-      </p>
-      <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 30px 0;" />
-      <p style="font-size: 12px; color: #94a3b8; text-align: center;">
-        MASAR Recruiter &copy; 2026. All rights reserved.
-      </p>
-    </div>
-  `;
+  const html = buildInvitationEmail({ inviterName, company, inviteUrl, expiresAt });
 
   const emailSent = await sendEmail({
     to: normalizedEmail,
@@ -300,5 +310,6 @@ export const inviteHRService = async ({
   return {
     email: normalizedEmail,
     expiresAt,
+    addedDirectly: false,
   };
 };

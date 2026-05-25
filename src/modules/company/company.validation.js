@@ -21,6 +21,8 @@ export const createCompanySchema = Joi.object({
       .optional(),
     location: Joi.string().max(200).optional(),
   }).required(),
+  query: Joi.object().optional(),
+  params: Joi.object().optional(),
 });
 
 export const updateCompanySchema = Joi.object({
@@ -50,6 +52,7 @@ export const updateCompanySchema = Joi.object({
         throw new Error("At least one field must be provided for update");
       }
     }),
+  query: Joi.object().optional(),
 });
 
 export const companyIdSchema = Joi.object({
@@ -58,6 +61,8 @@ export const companyIdSchema = Joi.object({
       "string.length": "Invalid company ID",
     }),
   }).required(),
+  query: Joi.object().optional(),
+  body: Joi.object().optional(),
 });
 
 export const addHRSchema = Joi.object({
@@ -70,6 +75,7 @@ export const addHRSchema = Joi.object({
       "any.required": "hrUserId is required",
     }),
   }).required(),
+  query: Joi.object().optional(),
 });
 
 export const inviteHRSchema = Joi.object({
@@ -84,4 +90,5 @@ export const inviteHRSchema = Joi.object({
       "any.required": "Email address is required.",
     }),
   }).required(),
+  query: Joi.object().optional(),
 });
