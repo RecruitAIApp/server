@@ -63,7 +63,6 @@ const userSchema = new mongoose.Schema(
   },
 );
 
-userSchema.index({ email: 1 }, { unique: true });
 userSchema.index({ role: 1, status: 1 });
 userSchema.index({ role: 1, isActive: 1, isBanned: 1 });
 

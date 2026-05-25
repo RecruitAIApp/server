@@ -1,4 +1,6 @@
 import fs from "fs";
+import { diskStorage } from "multer";
+import multer from "multer";
 import { fileTypeFromFile } from "file-type";
 
 export const cloudUpload = (types = ["image/png", "image/jpeg", "application/pdf"]) => {
