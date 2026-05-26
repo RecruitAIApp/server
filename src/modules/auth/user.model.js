@@ -25,6 +25,12 @@ const userSchema = new mongoose.Schema(
       required: true,
     },
 
+    fullName: {
+      type: String,
+      trim: true,
+      required: true,
+    },
+
     status: {
       type: String,
       enum: ["active", "inactive", "suspended", "pending_approval"],

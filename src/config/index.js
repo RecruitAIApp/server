@@ -20,7 +20,7 @@ export const config = {
     refreshSecret:
       process.env.JWT_REFRESH_SECRET ||
       `${process.env.JWT_SECRET || "recruit_ai_secure_secret_key_12345!@#"}_refresh`,
-    accessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN || "15m",
+    accessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN || "1h",
     refreshExpiresIn: process.env.JWT_EXPIRES_IN || "7d",
   },
   llm: {

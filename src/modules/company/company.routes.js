@@ -1,31 +1,53 @@
 import { Router } from "express";
+import rateLimit from "express-rate-limit";
+
 import * as companyController from "./company.controller.js";
-import { validate } from "../../common/middlewares/validation.middleware.js";
-import {
-  isCompanyOwner,
-  isEmployer,
-} from "../../common/middlewares/permissions.middleware.js";
+
 import {
   createCompanySchema,
   updateCompanySchema,
   companyIdSchema,
-  addHRSchema,
   inviteHRSchema,
 } from "./company.validation.js";
-import { authenticate } from "../../common/middlewares/auth.middleware.js";
+
+import { validate } from "../../common/middlewares/validation.middleware.js";
+
+import {
+  authenticate,
+  requireEmployerApproved,
+} from "../../common/middlewares/auth.middleware.js";
+
+import {
+  isCompanyOwner,
+  isEmployer,
+} from "../../common/middlewares/permissions.middleware.js";
+
 import { cloudUpload } from "../../config/multer.config.js";
-import rateLimit from "express-rate-limit";
-const inviteLimit = rateLimit({ windowMs: 60 * 60 * 1000, max: 10 });
+
+const inviteLimit = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+});
 
 const router = Router();
 
-router.get("/my", authenticate, isEmployer, companyController.getMyCompanies);
+router.get(
+  "/my",
+  authenticate,
+  isEmployer,
+  companyController.getMyCompanies,
+);
 
-router.get("/:id", validate(companyIdSchema), companyController.getCompany);
+router.get(
+  "/:id",
+  validate(companyIdSchema),
+  companyController.getCompany,
+);
 
 router.post(
   "/",
   authenticate,
+  // requireEmployerApproved,
   isEmployer,
   validate(createCompanySchema),
   companyController.createCompany,
@@ -54,7 +76,11 @@ router.put(
   authenticate,
   isEmployer,
   isCompanyOwner,
-  cloudUpload(["image/png", "image/jpeg", "application/pdf"]).single("license"),
+  cloudUpload([
+    "image/png",
+    "image/jpeg",
+    "application/pdf",
+  ]).single("license"),
   companyController.addLicenses,
 );
 
@@ -75,4 +101,5 @@ router.delete(
   isCompanyOwner,
   companyController.removeHR,
 );
+
 export default router;

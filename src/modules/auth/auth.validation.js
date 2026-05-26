@@ -16,6 +16,25 @@ export const registerSchema = Joi.object({
     .messages({
       "any.only": "Role must be either candidate or employer.",
     }),
+  fullName: Joi.string().trim().required().messages({
+    "string.empty": "Full name cannot be empty.",
+  }),
+  employerType: Joi.when("role", {
+    is: "employer",
+    then: Joi.string().valid("owner", "hr").default("owner"),
+    otherwise: Joi.forbidden(),
+  }),
+});
+
+export const ownerCompanyOnboardSchema = Joi.object({
+  name: Joi.string().min(2).max(100).required(),
+  description: Joi.string().min(10).max(1000).required(),
+  industry: Joi.string().min(2).max(100).required(),
+  size: Joi.string()
+    .valid("1-10", "11-50", "51-200", "201-500", "500+")
+    .optional(),
+  location: Joi.string().max(200).optional().allow(""),
+  website: Joi.string().uri().optional().allow(""),
 });
 
 export const refreshSchema = Joi.object({
