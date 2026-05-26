@@ -76,6 +76,36 @@ export const deleteCompany = async (req, res, next) => {
   }
 };
 
+export const restoreCompany = async (req, res, next) => {
+  try {
+    const company = await companyService.restoreCompanyService(
+      req.params.id,
+      req.user.id,
+    );
+    return sendResponse(
+      res,
+      200,
+      true,
+      "Company restored successfully",
+      company,
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const hardDeleteCompany = async (req, res, next) => {
+  try {
+    const result = await companyService.hardDeleteCompanyService(
+      req.params.id,
+      req.user.id,
+    );
+    return sendResponse(res, 200, true, "Company permanently deleted", result);
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const addLicenses = async (req, res, next) => {
   try {
     if (!req.file) {
@@ -120,7 +150,8 @@ export const inviteHR = async (req, res, next) => {
       companyId,
       invitedBy,
       email,
-      origin: req.headers.origin || req.headers.referer || "http://localhost:5173",
+      origin:
+        req.headers.origin || req.headers.referer || "http://localhost:5173",
     });
 
     const message = result.addedDirectly

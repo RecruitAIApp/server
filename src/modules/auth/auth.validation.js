@@ -83,4 +83,7 @@ export const acceptHRInviteSchema = Joi.object({
   password: Joi.string().min(8).optional().messages({
     "string.min": "Password must be at least 8 characters long.",
   }),
+  fullName: Joi.string().trim().required().messages({
+    "string.empty": "Full name cannot be empty.",
+  }),
 });

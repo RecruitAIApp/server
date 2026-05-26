@@ -102,4 +102,24 @@ router.delete(
   companyController.removeHR,
 );
 
+// Restore a soft-deleted company (owner only — checks ActivationDate inside service)
+router.patch(
+  "/:id/restore",
+  authenticate,
+  isEmployer,
+  isCompanyOwner,
+  validate(companyIdSchema),
+  companyController.restoreCompany,
+);
+ 
+// Permanently delete a company that has already been soft-deleted (owner only)
+router.delete(
+  "/:id/hard",
+  authenticate,
+  isEmployer,
+  isCompanyOwner,
+  validate(companyIdSchema),
+  companyController.hardDeleteCompany,
+);
+
 export default router;

@@ -15,9 +15,14 @@ export const createCompanyService = async (data, ownerId) => {
   const existing = await Company.findOne({
     name: { $regex: `^${data.name}$`, $options: "i" },
   });
+  if (existing && existing.status === "inactive") {
+    const error = new Error("Company is already soft deleted please restore");
+    error.statusCode = 400;
+    throw error;
+  }
   if (existing) {
-    const error = new Error("A company with this name already exists");
-    error.statusCode = 409;
+    const error = new Error("Company name already exists");
+    error.statusCode = 400;
     throw error;
   }
 
@@ -73,7 +78,7 @@ export const getCompanyByIdService = async (id) => {
     throw error;
   }
   if (company.status !== "active") {
-    const error = new Error("Company not found"); // Intentionally vague — do not reveal existence
+    const error = new Error("Company is not active yet or soft deleted"); // Intentionally vague — do not reveal existence
     error.statusCode = 404;
     throw error;
   }
@@ -136,6 +141,109 @@ export const deleteCompanyService = async (id) => {
     { $set: { status: "closed" } },
   );
   return company;
+};
+
+export const restoreCompanyService = async (id, requesterId) => {
+  const company = await Company.findById(id);
+
+  if (!company) {
+    const error = new Error("Company not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  // Must have been activated by admin at least once
+  if (!company.ActivationDate) {
+    const error = new Error(
+      "Company cannot be restored because it was never activated by an admin",
+    );
+    error.statusCode = 403;
+    throw error;
+  }
+
+  // Must currently be soft-deleted
+  if (company.status !== "inactive") {
+    const error = new Error(
+      company.status === "active"
+        ? "Company is already active"
+        : "Company cannot be restored while it is pending admin approval",
+    );
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // Requester must be the owner (guard against HR calling this endpoint)
+  if (company.owner.toString() !== requesterId.toString()) {
+    const error = new Error("Only the company owner can restore this company");
+    error.statusCode = 403;
+    throw error;
+  }
+
+  company.status = "active";
+  await company.save();
+
+  // Re-open jobs that were closed by the soft-delete (optional — remove if
+  // you prefer jobs to stay closed and let the owner re-open them manually)
+  await Job.updateMany(
+    { company: id, status: "closed" },
+    { $set: { status: "open" } },
+  );
+
+  return company;
+};
+
+// ── ADD after restoreCompanyService ──────────────────────────────────────────
+
+export const hardDeleteCompanyService = async (id, requesterId) => {
+  const company = await Company.findById(id);
+
+  if (!company) {
+    const error = new Error("Company not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  // Only the owner may permanently delete
+  if (company.owner.toString() !== requesterId.toString()) {
+    const error = new Error(
+      "Only the company owner can permanently delete this company",
+    );
+    error.statusCode = 403;
+    throw error;
+  }
+
+  // Safety gate: company must already be soft-deleted before it can be
+  // permanently removed. This prevents accidental wipes of live companies.
+  if (company.status !== "inactive") {
+    const error = new Error(
+      "Company must be soft-deleted (inactive) before it can be permanently deleted",
+    );
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // Delete related data in parallel
+  await Promise.all([
+    Job.deleteMany({ company: id }),
+    EmployerProfile.deleteMany({ companyId: id }),
+    HRInvitation.deleteMany({ companyId: id }),
+  ]);
+
+  // Delete the Cloudinary license asset if one exists
+  if (company.licenses?.public_id) {
+    await cloudinary.uploader
+      .destroy(company.licenses.public_id, { resource_type: "auto" })
+      .catch(() => {
+        // Non-fatal: log but don't block deletion
+        console.warn(
+          `[hardDelete] Could not remove Cloudinary asset: ${company.licenses.public_id}`,
+        );
+      });
+  }
+
+  await company.deleteOne();
+
+  return { deleted: true, companyId: id };
 };
 
 export const addHRService = async (companyId, hrUserId) => {
