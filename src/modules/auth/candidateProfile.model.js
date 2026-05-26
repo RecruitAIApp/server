@@ -11,12 +11,6 @@ const candidateProfileSchema = new mongoose.Schema(
     },
 
     basicInfo: {
-      fullName: {
-        type: String,
-        required: true,
-        trim: true,
-      },
-
       headline: {
         type: String,
         trim: true,
@@ -87,14 +81,17 @@ const candidateProfileSchema = new mongoose.Schema(
 
       parsedData: {
         skills: [String],
-
         experienceYears: Number,
-
         jobTitles: [String],
-
         summary: String,
       },
-
+      parseStatus: {
+        type: String,
+        enum: ["none", "pending", "processing", "done", "failed"],
+        default: "none",
+      },
+      parseError: String,
+      parsedAt: Date,
     },
 
     profileCompletion: {
@@ -102,6 +99,11 @@ const candidateProfileSchema = new mongoose.Schema(
       default: 0,
       min: 0,
       max: 100,
+    },
+
+    onboardingCompleted: {
+      type: Boolean,
+      default: false,
     },
   },
   {
