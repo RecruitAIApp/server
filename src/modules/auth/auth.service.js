@@ -1,10 +1,13 @@
 import jwt from "jsonwebtoken";
 import User from "./user.model.js";
-import CandidateProfile from "./candidateProfile.model.js";
 import config from "../../config/index.js";
 import { createError } from "../../utils/error.js";
 import { sendEmail } from "../../utils/email.js";
 import { generateResetToken, hashResetToken } from "../../utils/hash.js";
+import EmployerProfile from "./employerProfile.model.js";
+import { getEmployerMembership } from "./employerOnboarding.service.js";
+
+export { getEmployerMembership };
 
 const GENERIC_AUTH_ERROR = "Invalid email or password.";
 const GENERIC_REFRESH_ERROR = "Invalid or expired refresh token.";
@@ -18,18 +21,16 @@ export function ensureAccountAccess(user) {
     throw createError(403, "Account is banned. Please contact support.");
   }
 
-  if (!user.isActive || user.status === "inactive") {
+  if (user.status === "inactive") {
     throw createError(403, "Account is inactive. Please contact support.");
   }
 
-  if (user.status === "pending_approval") {
-    throw createError(
-      403,
-      "Account is pending approval. Please wait for admin review.",
-    );
+  if (!user.isActive && user.status !== "pending_approval") {
+    throw createError(403, "Account is inactive. Please contact support.");
   }
 
-  if (user.status !== "active") {
+  // pending_approval: allowed to login/refresh (authentication only)
+  if (user.status !== "active" && user.status !== "pending_approval") {
     throw createError(403, "Account is not available. Please contact support.");
   }
 }
@@ -49,9 +50,7 @@ class AuthService {
     }
 
     const secret =
-      expectedType === "refresh"
-        ? config.jwt.refreshSecret
-        : config.jwt.secret;
+      expectedType === "refresh" ? config.jwt.refreshSecret : config.jwt.secret;
 
     try {
       const decoded = jwt.verify(token, secret);
@@ -88,30 +87,56 @@ class AuthService {
     return { accessToken, refreshToken };
   }
 
-  async register(email, password, role = "candidate") {
+  async register(email, password, role = "candidate", fullName, employerType) {
     const existingUser = await User.findOne({ email: email.toLowerCase() });
     if (existingUser) {
       throw createError(400, "Email is already registered.");
     }
 
     const isEmployer = role === "employer";
+    const isEmployerHr = isEmployer && employerType === "hr";
+
     const user = new User({
       email: email.toLowerCase(),
       password,
       role,
-      ...(isEmployer && {
+      ...(fullName?.trim() && { fullName: fullName.trim() }),
+      ...(isEmployer &&
+        !isEmployerHr && {
         status: "pending_approval",
         isActive: false,
       }),
     });
     await user.save();
 
-    if (isEmployer) {
+    if (isEmployerHr) {
+      await EmployerProfile.create({
+        userId: user._id,
+        role: "hr",
+        companyId: null,
+      });
+      const { accessToken, refreshToken } = await this.generateTokens(user);
+      const membership = await getEmployerMembership(user._id);
       return {
         user: user.toJSON(),
-        accessToken: null,
-        refreshToken: null,
+        accessToken,
+        refreshToken,
+        employerType: "hr",
+        membership,
+      };
+    }
+
+    if (isEmployer && !isEmployerHr) {
+      const { accessToken, refreshToken } = await this.generateTokens(user);
+      const membership = await getEmployerMembership(user._id);
+      return {
+        user: user.toJSON(),
+        accessToken,
+        refreshToken,
         pendingApproval: true,
+        needsCompanyOnboarding: true,
+        employerType: "owner",
+        membership,
       };
     }
 
@@ -139,7 +164,17 @@ class AuthService {
     await user.save();
 
     const { accessToken, refreshToken } = await this.generateTokens(user);
-    return { user: user.toJSON(), accessToken, refreshToken };
+    const membership =
+      user.role === "employer"
+        ? await getEmployerMembership(user._id)
+        : null;
+
+    return {
+      user: user.toJSON(),
+      accessToken,
+      refreshToken,
+      membership,
+    };
   }
 
   async refreshAccessToken(refreshToken) {
@@ -162,7 +197,12 @@ class AuthService {
       }
 
       const { accessToken } = await this.generateTokens(user);
-      return { accessToken, user: user.toJSON() };
+      const membership =
+        user.role === "employer"
+          ? await getEmployerMembership(user._id)
+          : null;
+
+      return { accessToken, user: user.toJSON(), membership };
     } catch (err) {
       if (err.status) throw err;
       throw createError(401, GENERIC_REFRESH_ERROR);
@@ -235,10 +275,7 @@ class AuthService {
     });
 
     if (!user) {
-      throw createError(
-        400,
-        "Password reset token is invalid or has expired.",
-      );
+      throw createError(400, "Password reset token is invalid or has expired.");
     }
 
     user.password = newPassword;
@@ -249,88 +286,6 @@ class AuthService {
     await user.save();
 
     return { success: true, message: "Password reset successful." };
-  }
-
-  async ensureCandidateUser(userId) {
-    const user = await User.findById(userId);
-    if (!user) {
-      throw createError(404, "User not found.");
-    }
-    ensureAccountAccess(user);
-    if (user.role !== "candidate") {
-      throw createError(
-        403,
-        "Candidate profile is only available for candidate accounts.",
-      );
-    }
-    return user;
-  }
-
-  async getProfile(userId) {
-    await this.ensureCandidateUser(userId);
-
-    let profile = await CandidateProfile.findOne({ userId });
-    if (!profile) {
-      profile = await CandidateProfile.create({ userId });
-    }
-    return profile;
-  }
-
-  calculateProfileCompletion(profile) {
-    let completion = 0;
-    const location = profile.basicInfo?.location;
-
-    if (
-      profile.basicInfo?.fullName &&
-      profile.basicInfo?.headline &&
-      (location?.country || location?.city)
-    ) {
-      completion += 25;
-    }
-    if (profile.skills?.length > 0) {
-      completion += 25;
-    }
-    if (profile.experience?.length > 0 || profile.education?.length > 0) {
-      completion += 25;
-    }
-    if (profile.resume?.url || profile.resume?.fileName) {
-      completion += 25;
-    }
-
-    return completion;
-  }
-
-  async updateProfile(userId, profileData) {
-    await this.ensureCandidateUser(userId);
-
-    let profile = await CandidateProfile.findOne({ userId });
-    if (!profile) {
-      profile = new CandidateProfile({ userId });
-    }
-
-    if (profileData.basicInfo) {
-      const existingBasic =
-        profile.basicInfo?.toObject?.() ?? profile.basicInfo ?? {};
-      profile.basicInfo = { ...existingBasic, ...profileData.basicInfo };
-    }
-    if (profileData.skills) {
-      profile.skills = profileData.skills;
-    }
-    if (profileData.experience) {
-      profile.experience = profileData.experience;
-    }
-    if (profileData.education) {
-      profile.education = profileData.education;
-    }
-    if (profileData.resume) {
-      const existingResume =
-        profile.resume?.toObject?.() ?? profile.resume ?? {};
-      profile.resume = { ...existingResume, ...profileData.resume };
-    }
-
-    profile.profileCompletion = this.calculateProfileCompletion(profile);
-    await profile.save();
-    return profile;
   }
 
   async acceptHRInviteService(token, password) {
@@ -414,5 +369,7 @@ class AuthService {
   }
 }
 
-export default new AuthService();
-export const authService = new AuthService();
+const authService = new AuthService();
+
+export default authService;
+export { authService };

@@ -1,22 +1,50 @@
 import authService from "./auth.service.js";
 import User from "./user.model.js";
+import {
+  completeOwnerCompanyOnboarding,
+  getEmployerMembership,
+} from "./employerOnboarding.service.js";
 
 class AuthController {
   async register(req, res) {
     try {
-      const { email, password, role } = req.validatedBody;
-      const result = await authService.register(email, password, role);
+      const { email, password, role, fullName, employerType } =
+        req.validatedBody;
+      const result = await authService.register(
+        email,
+        password,
+        role,
+        fullName,
+        employerType,
+      );
 
-      return res.status(201).json({
+      const response = {
         success: true,
         message: result.pendingApproval
-          ? "Account created. Pending approval before you can sign in."
+          ? "Account created and pending admin approval"
           : "Account created successfully.",
         user: result.user,
-        accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
-        pendingApproval: Boolean(result.pendingApproval),
-      });
+      };
+
+      if (result.accessToken) {
+        response.accessToken = result.accessToken;
+        response.refreshToken = result.refreshToken;
+      }
+      if (result.pendingApproval) {
+        response.pendingApproval = true;
+      }
+      if (result.needsCompanyOnboarding) {
+        response.needsCompanyOnboarding = true;
+      }
+
+      if (result.employerType) {
+        response.employerType = result.employerType;
+      }
+      if (result.membership) {
+        response.membership = result.membership;
+      }
+
+      return res.status(201).json(response);
     } catch (err) {
       const statusCode = err.status || 400;
       return res.status(statusCode).json({
@@ -37,6 +65,7 @@ class AuthController {
         user: result.user,
         accessToken: result.accessToken,
         refreshToken: result.refreshToken,
+        membership: result.membership ?? null,
       });
     } catch (err) {
       const statusCode = err.status || 401;
@@ -57,6 +86,7 @@ class AuthController {
         message: "Session restored successfully.",
         accessToken: result.accessToken,
         user: result.user,
+        membership: result.membership ?? null,
       });
     } catch (err) {
       const statusCode = err.status || 401;
@@ -69,7 +99,7 @@ class AuthController {
 
   async getMe(req, res) {
     try {
-      const user = await User.findById(req.user.userId);
+      const user = await User.findById(req.user.id);
       if (!user) {
         return res.status(404).json({
           success: false,
@@ -77,9 +107,15 @@ class AuthController {
         });
       }
 
+      const membership =
+        user.role === "employer"
+          ? await getEmployerMembership(user._id)
+          : null;
+
       return res.status(200).json({
         success: true,
         user: user.toJSON(),
+        membership,
       });
     } catch (err) {
       return res.status(500).json({
@@ -89,10 +125,35 @@ class AuthController {
     }
   }
 
+  async onboardOwnerCompany(req, res) {
+    try {
+      const companyFields = req.validatedBody;
+      const result = await completeOwnerCompanyOnboarding(
+        req.user.id,
+        companyFields,
+      );
+
+      return res.status(201).json({
+        success: true,
+        message:
+          "Company submitted. Your account is pending admin approval.",
+        pendingApproval: true,
+        user: result.user,
+        company: result.company,
+        membership: result.membership,
+      });
+    } catch (err) {
+      return res.status(err.status || 400).json({
+        success: false,
+        message: err.message || "Company onboarding failed.",
+      });
+    }
+  }
+
   async logout(req, res) {
     try {
-      if (req.user?.userId) {
-        await authService.logout(req.user.userId);
+      if (req.user?.id) {
+        await authService.logout(req.user.id);
       }
       return res.status(200).json({
         success: true,
@@ -171,7 +232,7 @@ class AuthController {
         });
       }
 
-      const result = await authService.getProfile(req.user.userId);
+      const result = await authService.getProfile(req.user.id);
       return res.status(200).json({
         success: true,
         profile: result,
@@ -193,7 +254,7 @@ class AuthController {
         });
       }
 
-      const result = await authService.updateProfile(req.user.userId, req.body);
+      const result = await authService.updateProfile(req.user.id, req.body);
       return res.status(200).json({
         success: true,
         message: "Profile updated successfully.",
@@ -229,5 +290,6 @@ class AuthController {
   }
 }
 
-export default new AuthController();
-export const authController = new AuthController();
+const authController = new AuthController();
+export default authController;
+export { authController };
