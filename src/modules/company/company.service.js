@@ -1,4 +1,4 @@
-import cloudinary from "../../config/cloud.config.js";
+import cloudinary from "../../config/cloudinary.config.js";
 import Company from "./company.model.js";
 import Job from "../jobs/job.model.js";
 import EmployerProfile from "../auth/employerProfile.model.js";
@@ -6,7 +6,10 @@ import User from "../auth/user.model.js";
 import HRInvitation from "./hrInvitation.model.js";
 import { sendEmail } from "../../utils/email.js";
 import crypto from "crypto";
-import { buildInvitationEmail , buildAddedDirectlyEmail} from "../../utils/invitation.templetes.js";
+import {
+  buildInvitationEmail,
+  buildAddedDirectlyEmail,
+} from "../../utils/invitation.templetes.js";
 
 export const createCompanyService = async (data, ownerId) => {
   const existing = await Company.findOne({
@@ -78,10 +81,15 @@ export const getCompanyByIdService = async (id) => {
   return company;
 };
 
-export const getMyCompaniesService = async (ownerId) => { 
-  const profiles = await EmployerProfile.find({ userId: ownerId }).select("companyId");
-  const companyIds = profiles.map(p => p.companyId);
-  return Company.find({ _id: { $in: companyIds }, status: { $ne: "inactive" } }).sort({ createdAt: -1 });
+export const getMyCompaniesService = async (ownerId) => {
+  const profiles = await EmployerProfile.find({ userId: ownerId }).select(
+    "companyId",
+  );
+  const companyIds = profiles.map((p) => p.companyId);
+  return Company.find({
+    _id: { $in: companyIds },
+    status: { $ne: "inactive" },
+  }).sort({ createdAt: -1 });
 };
 
 export const updateCompanyService = async (id, data) => {
@@ -123,7 +131,10 @@ export const deleteCompanyService = async (id) => {
     error.statusCode = 404;
     throw error;
   }
-  await Job.updateMany({ company: id, status: "open" }, { $set: { status: "closed" } });
+  await Job.updateMany(
+    { company: id, status: "open" },
+    { $set: { status: "closed" } },
+  );
   return company;
 };
 
@@ -276,7 +287,10 @@ export const inviteHRService = async ({
 
   // 4b. Generate secure token
   const rawToken = crypto.randomBytes(32).toString("hex");
-  const hashedToken = crypto.createHash("sha256").update(rawToken).digest("hex");
+  const hashedToken = crypto
+    .createHash("sha256")
+    .update(rawToken)
+    .digest("hex");
 
   // 4c. Set expiration (48 hours)
   const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
@@ -292,7 +306,12 @@ export const inviteHRService = async ({
 
   // 4e. Send invite email with accept link
   const inviteUrl = `${origin}/accept-invite?token=${rawToken}`;
-  const html = buildInvitationEmail({ inviterName, company, inviteUrl, expiresAt });
+  const html = buildInvitationEmail({
+    inviterName,
+    company,
+    inviteUrl,
+    expiresAt,
+  });
 
   const emailSent = await sendEmail({
     to: normalizedEmail,
