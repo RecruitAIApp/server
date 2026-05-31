@@ -270,6 +270,23 @@ export const isJobOwner = async (req, res, next) => {
   }
 };
 
+export const isCandidate = (req, res, next) => {
+  if (!req.user) {
+    return sendResponse(res, 401, false, "Unauthorized");
+  }
+
+  if (req.user.role !== "candidate") {
+    return sendResponse(
+      res,
+      403,
+      false,
+      "Forbidden: only candidates can perform this action"
+    );
+  }
+
+  next();
+};
+
 // Only the poster or company owner can delete
 export const isJobDeleter = async (req, res, next) => {
   try {
