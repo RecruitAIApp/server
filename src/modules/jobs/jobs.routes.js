@@ -5,7 +5,7 @@ import {
   isEmployerOrHR,
   isJobOwner,
   isCompanyOwnerOrHR,
-  isJobDeleter
+  isJobDeleter,
 } from "../../common/middlewares/permissions.middleware.js";
 import {
   createJobSchema,
@@ -17,11 +17,53 @@ import { authenticate } from "../../common/middlewares/auth.middleware.js";
 
 const router = Router();
 
-router.get("/", validate(jobFilterSchema), jobController.getAllJobs);
+//todo dashboard api for jobs
+//todo dashboard Job Analytics API
+//todo dashboard Employer dashboard
+/** Backend
+ Create Job
+ Update Job
+ Delete Job
+ Get Job
+ Search Job
+ Filter Job
+ Pagination
+ Ownership Validation
+ Dashboard Stats
 
-router.get("/company/:companyId", validate(jobFilterSchema), jobController.getJobsByCompany);
+Frontend
+ Dashboard
+ Job Table
+ Create Job
+ Edit Job
+ Delete Job
+ Search
+ Filters
+ Pagination
+ 
+AI
+ Job Embedding Generation
+ Vector Storage
+ Recommendation Service
+ Recommendation Endpoint
+  */
 
-router.get("/my", authenticate, isEmployerOrHR, validate(jobFilterSchema), jobController.getMyJobs);
+router.get("/", authenticate ,validate(jobFilterSchema), jobController.getAllJobs);
+
+router.get(
+  "/company/:companyId",
+  authenticate,
+  validate(jobFilterSchema),
+  jobController.getJobsByCompany,
+);
+
+router.get(
+  "/my",
+  authenticate,
+  isEmployerOrHR,
+  validate(jobFilterSchema),
+  jobController.getMyJobs,
+);
 
 router.get("/:id", validate(jobIdSchema), jobController.getJob);
 
@@ -29,18 +71,18 @@ router.post(
   "/",
   authenticate,
   isEmployerOrHR,
-  isCompanyOwnerOrHR,    // confirms they belong to that specific company
+  isCompanyOwnerOrHR, // confirms they belong to that specific company
   validate(createJobSchema),
-  jobController.createJob
+  jobController.createJob,
 );
 
 router.put(
   "/:id",
   authenticate,
   isEmployerOrHR,
-  isJobOwner,          
+  isJobOwner,
   validate(updateJobSchema),
-  jobController.updateJob
+  jobController.updateJob,
 );
 
 router.delete(
@@ -49,7 +91,7 @@ router.delete(
   isEmployerOrHR,
   isJobDeleter,
   validate(jobIdSchema),
-  jobController.deleteJob
+  jobController.deleteJob,
 );
 
 export default router;

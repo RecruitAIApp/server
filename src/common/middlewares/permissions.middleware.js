@@ -192,12 +192,10 @@ export const isCompanyOwnerOrHR = async (req, res, next) => {
     if (!companyId) {
       return sendResponse(res, 400, false, "Company ID is required");
     }
-
     const company = await Company.findById(companyId);
     if (!company) {
       return sendResponse(res, 404, false, "Company not found");
     }
-
     if (company.status !== "active") {
       return sendResponse(
         res,

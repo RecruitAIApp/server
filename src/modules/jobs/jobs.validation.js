@@ -8,6 +8,9 @@ const salaryRangeSchema = Joi.object({
   max: Joi.number().min(0).required().messages({
     "number.min": "Maximum salary must be >= 0",
   }),
+  currency: Joi.string().min(2).max(3).required().messages({
+    "string.min": "Currency must be at least 2 characters",
+  }),
 }).external(async (data) => {
   if (data.max < data.min) {
     throw new Error("Maximum salary must be >= minimum salary");
@@ -31,8 +34,8 @@ export const createJobSchema = Joi.object({
       }),
     salaryRange: salaryRangeSchema.required(),
     location: Joi.string().min(2).max(200).required(),
-    company: Joi.string().min(24).required().messages({
-      "string.min": "Invalid company ID",
+    company: Joi.custom(isValidId).required().messages({
+      "string.length": "Invalid company ID",
     }),
     jobType: Joi.string().valid("remote", "onsite", "hybrid").required(),
     employmentType: Joi.string()
@@ -46,6 +49,8 @@ export const createJobSchema = Joi.object({
       "date.min": "Application deadline must be in the future",
     }),
   }).required(),
+  query: Joi.object().optional(),
+  params: Joi.object().optional(),
 });
 
 export const updateJobSchema = Joi.object({
@@ -111,4 +116,6 @@ export const jobFilterSchema = Joi.object({
       .default("createdAt"),
     sortOrder: Joi.string().valid("asc", "desc").default("desc"),
   }).required(),
+  params: Joi.object().optional(),
+  body: Joi.object().optional(),
 });

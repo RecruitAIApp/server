@@ -30,6 +30,11 @@ const jobSchema = new Schema(
           message: "Max salary must be >= min salary",
         },
       },
+      currency: {
+        type: String,
+        required: [true, "Currency is required"],
+        trim: true,
+      },
     },
     location: {
       type: String,
