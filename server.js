@@ -6,14 +6,15 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
+
 
 const server = http.createServer(app);
 
 const startServer = async () => {
   try {
     await connectDB();
-    
+
     redisConnection.on('connect', () => {
       console.log('Redis Connected successfully for Queues');
     });

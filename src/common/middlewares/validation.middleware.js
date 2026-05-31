@@ -5,22 +5,28 @@ export const validate = (schema) => (req, res, next) => {
       query: req.query,
       params: req.params,
     },
-    { abortEarly: false }
+    { abortEarly: false },
   );
 
   if (error) {
     return res.status(400).json({
       success: false,
-      message: 'Validation Error',
+      message: "Validation Error",
       errors: error.details.map((err) => ({
-        field: err.path.slice(1).join('.') || err.path[0],
-        message: err.message.replace(/^(body\.|query\.|params\.)/, ''),
+        field: err.path.slice(1).join(".") || err.path[0],
+        message: err.message.replace(/^(body\.|query\.|params\.)/, ""),
       })),
     });
   }
 
-  req.body = value.body;
-  req.query = value.query;
-  req.params = value.params;
+  if (value.body) req.body = value.body;
+
+  if (value.query) {
+    Object.assign(req.query, value.query);
+  }
+
+  if (value.params) {
+    Object.assign(req.params, value.params);
+  }
   next();
 };

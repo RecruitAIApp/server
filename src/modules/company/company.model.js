@@ -25,8 +25,13 @@ const companySchema = new Schema(
     },
     owner: {
       type: Types.ObjectId,
-      ref: "EmployerProfile", // should be employer role owner
+      ref: "User", // references User directly
       required: [true, "Company owner is required"],
+    },
+    HRs: {
+      type: [Types.ObjectId],
+      ref: "User",
+      default: [],
     },
     website: {
       type: String,
@@ -54,7 +59,6 @@ const companySchema = new Schema(
         public_id: { type: String },
       },
       default: null,
-      required: [true, "Licenses is required"],
     },
     status: {
       type: String,
@@ -62,11 +66,6 @@ const companySchema = new Schema(
       default: "pending",
     },
     ActivationDate: Date,
-    HRs: {
-      type: [Types.ObjectId],
-      ref: "EmployerProfile", // should be employer role hr
-      default: [],
-    },
     socialLinks: {
       linkedin: String,
       facebook: String,
@@ -79,18 +78,18 @@ const companySchema = new Schema(
     timestamps: true,
   },
 );
-companySchema.pre("save", function (next) {
+companySchema.pre("save", function () {
   if (this.isModified("name")) {
     this.slug = this.name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)+/g, "");
   }
-
-  next();
 });
-
 companySchema.index({ owner: 1 });
-companySchema.index({ name: "text", description: "text" });
+companySchema.index(
+  { name: 1 },
+  { unique: true, collation: { locale: "en", strength: 2 } },
+);
 
 export default model("Company", companySchema);

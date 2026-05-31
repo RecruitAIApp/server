@@ -5,6 +5,10 @@ import morgan from "morgan";
 import dotenv from "dotenv";
 import authRouter from "./src/modules/auth/auth.routes.js";
 import applicationRouter from "./src/modules/applications/applications.routes.js";
+import companyRouter from "./src/modules/company/company.routes.js";
+import jobsRouter from "./src/modules/jobs/jobs.routes.js";
+import profileRouter from "./src/modules/profiles/profile.routes.js";
+import testRouter from "./src/routes/test.routes.js";
 
 dotenv.config();
 const app = express();
@@ -27,8 +31,18 @@ app.get("/health", (req, res) => {
   });
 });
 
+// Auth routes
 app.use("/api/auth", authRouter);
 app.use("/api/v1/applications", applicationRouter);
+
+app.use("/api/companies", companyRouter);
+app.use("/api/jobs", jobsRouter);
+
+// Profile routes
+app.use("/api/profiles", profileRouter);
+
+// Test routes (for development/testing)
+// app.use("/api/test", testRouter);
 
 app.use((req, res) => {
   res.status(404).json({

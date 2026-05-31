@@ -6,14 +6,14 @@ const employerProfileSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
-      unique: true,
       index: true,
     },
 
     companyId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Company",
-      required: true,
+      required: false,
+      default: null,
       index: true,
     },
 
@@ -28,6 +28,8 @@ const employerProfileSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+employerProfileSchema.index({ userId: 1, companyId: 1 }, { unique: true });
 
 export default mongoose.model(
   "EmployerProfile",

@@ -18,15 +18,17 @@ const jobSchema = new Schema(
       default: [],
     },
     salaryRange: {
-      min: {
-        type: Number,
-        required: [true, "Minimum salary is required"],
-        min: 0,
-      },
+      min: { type: Number, min: 0, required: true },
       max: {
         type: Number,
-        required: [true, "Maximum salary is required"],
         min: 0,
+        required: true,
+        validate: {
+          validator: function (v) {
+            return v >= this.salaryRange.min;
+          },
+          message: "Max salary must be >= min salary",
+        },
       },
     },
     location: {
@@ -75,7 +77,7 @@ const jobSchema = new Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 jobSchema.index({ company: 1 });

@@ -12,8 +12,9 @@ export const buildJobFilters = (query) => {
   if (query.company) filter.company = query.company;
 
   // Case-insensitive partial match on location
+  const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   if (query.location) {
-    filter.location = { $regex: query.location, $options: "i" };
+    filter.location = { $regex: escapeRegex(query.location), $options: "i" };
   }
 
   // Full-text search on title + description + skills

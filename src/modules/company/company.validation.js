@@ -1,4 +1,5 @@
 import Joi from "joi";
+import { isValidId } from "../../utils/globalVariables.js";
 
 export const createCompanySchema = Joi.object({
   body: Joi.object({
@@ -20,11 +21,13 @@ export const createCompanySchema = Joi.object({
       .optional(),
     location: Joi.string().max(200).optional(),
   }).required(),
+  query: Joi.object().optional(),
+  params: Joi.object().optional(),
 });
 
 export const updateCompanySchema = Joi.object({
   params: Joi.object({
-    id: Joi.string().length(24).required().messages({
+    id: Joi.custom(isValidId).required().messages({
       "string.length": "Invalid company ID",
     }),
   }).required(),
@@ -49,24 +52,43 @@ export const updateCompanySchema = Joi.object({
         throw new Error("At least one field must be provided for update");
       }
     }),
+  query: Joi.object().optional(),
 });
 
 export const companyIdSchema = Joi.object({
   params: Joi.object({
-    id: Joi.string().length(24).required().messages({
+    id: Joi.custom(isValidId).required().messages({
       "string.length": "Invalid company ID",
     }),
   }).required(),
+  query: Joi.object().optional(),
+  body: Joi.object().optional(),
 });
 
 export const addHRSchema = Joi.object({
   params: Joi.object({
-    id: Joi.string().length(24).required(),
+    id: Joi.custom(isValidId).required(),
   }).required(),
   body: Joi.object({
-    hrUserId: Joi.string().length(24).required().messages({
+    hrUserId: Joi.custom(isValidId).required().messages({
       "string.length": "Invalid HR user ID",
       "any.required": "hrUserId is required",
     }),
   }).required(),
+  query: Joi.object().optional(),
+});
+
+export const inviteHRSchema = Joi.object({
+  params: Joi.object({
+    id: Joi.custom(isValidId).required().messages({
+      "string.length": "Invalid company ID",
+    }),
+  }).required(),
+  body: Joi.object({
+    email: Joi.string().email().required().messages({
+      "string.email": "Please provide a valid email address.",
+      "any.required": "Email address is required.",
+    }),
+  }).required(),
+  query: Joi.object().optional(),
 });

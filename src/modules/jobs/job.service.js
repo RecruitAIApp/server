@@ -1,5 +1,6 @@
 import Job from "./job.model.js";
 import Company from "../company/company.model.js";
+import employerProfile from "../auth/employerProfile.model.js";
 import {
   buildJobFilters,
   buildPaginationOptions,
@@ -20,12 +21,14 @@ export const createJobService = async (data, userId) => {
     throw error;
   }
 
-  const isOwner = company.owner.toString() === userId;
-  const isHR = company.HRs.map((id) => id.toString()).includes(userId);
+  const profile = await employerProfile.findOne({
+    userId,
+    companyId: data.company,
+  });
 
-  if (!isOwner && !isHR) {
+  if (!profile) {
     const error = new Error(
-      "Forbidden: only the company owner or an assigned HR can post jobs"
+      "Forbidden: only the company owner or an assigned HR can post jobs",
     );
     error.statusCode = 403;
     throw error;
@@ -40,7 +43,7 @@ export const getJobByIdService = async (id) => {
     .populate("company", "name logo industry location")
     .populate("postedBy", "name email");
 
-  if (!job) {
+  if (!job || job.status !== "open") {
     const error = new Error("Job not found");
     error.statusCode = 404;
     throw error;
@@ -49,8 +52,11 @@ export const getJobByIdService = async (id) => {
   return job;
 };
 
-export const getAllJobsService = async (query) => {
+export const getAllJobsService = async (query , userRole = null) => {
   const filter = buildJobFilters(query);
+  if (userRole !== "employer") {
+    filter.status = filter.status || "open"; // Default to open for non-employers
+  }
   const { skip, limit, sort, page } = buildPaginationOptions(query);
 
   const [jobs, total] = await Promise.all([
@@ -66,8 +72,11 @@ export const getAllJobsService = async (query) => {
   return buildPaginatedResponse(jobs, total, page, limit);
 };
 
-export const getJobsByEmployerService = async (userId, query) => {
+export const getJobsByEmployerService = async (userId, query , userRole) => {
   const filter = { postedBy: userId, ...buildJobFilters(query) };
+  if (userRole !== "employer") {
+    filter.status = filter.status || "open"; // Default to open for non-employers
+  }
   const { skip, limit, sort, page } = buildPaginationOptions(query);
 
   const [jobs, total] = await Promise.all([
@@ -84,7 +93,13 @@ export const getJobsByEmployerService = async (userId, query) => {
 };
 
 export const getJobsByCompanyService = async (companyId, query) => {
-  const filter = { company: companyId, ...buildJobFilters(query) };
+  const company = await Company.findById(companyId);
+  if (!company || company.status !== "active") {
+    const error = new Error("Company not found");
+    error.statusCode = 404;
+    throw error;
+  }
+  const filter = { company: companyId, status: "open", ...buildJobFilters(query) }
   const { skip, limit, sort, page } = buildPaginationOptions(query);
 
   const [jobs, total] = await Promise.all([
@@ -99,7 +114,7 @@ export const updateJobService = async (id, data) => {
   const job = await Job.findByIdAndUpdate(
     id,
     { $set: data },
-    { new: true, runValidators: true }
+    { new: true, runValidators: true },
   ).populate("company", "name logo industry");
 
   if (!job) {

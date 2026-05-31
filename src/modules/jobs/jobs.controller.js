@@ -12,7 +12,7 @@ export const createJob = async (req, res, next) => {
 
 export const getAllJobs = async (req, res, next) => {
   try {
-    const result = await jobService.getAllJobsService(req.query);
+    const result = await jobService.getAllJobsService(req.query , req.user.role);
     return sendResponse(res, 200, true, "Jobs fetched successfully", result);
   } catch (error) {
     next(error);
@@ -23,7 +23,8 @@ export const getMyJobs = async (req, res, next) => {
   try {
     const result = await jobService.getJobsByEmployerService(
       req.user.id,
-      req.query
+      req.query,
+      req.user.role
     );
     return sendResponse(res, 200, true, "Your jobs fetched successfully", result);
   } catch (error) {
