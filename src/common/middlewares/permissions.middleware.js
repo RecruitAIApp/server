@@ -144,6 +144,22 @@ export const isEmployerOrHR = (req, res, next) => {
       "Forbidden: only employers or HR users can perform this action"
     );
   }
+  next();
+};
+
+export const isCandidate = (req, res, next) => {
+  if (!req.user) {
+    return sendResponse(res, 401, false, "Unauthorized");
+  }
+
+  if (req.user.role !== "candidate") {
+    return sendResponse(
+      res,
+      403,
+      false,
+      "Forbidden: only candidates can perform this action"
+    );
+  }
 
   next();
 };

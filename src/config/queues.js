@@ -1,0 +1,1 @@
+export const aiAutomationQueue = 'AI_AUTOMATION_QUEUE';

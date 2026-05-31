@@ -4,6 +4,7 @@ import helmet from "helmet";
 import morgan from "morgan";
 import dotenv from "dotenv";
 import authRouter from "./src/modules/auth/auth.routes.js";
+import applicationRouter from "./src/modules/applications/applications.routes.js";
 
 dotenv.config();
 const app = express();
@@ -27,6 +28,7 @@ app.get("/health", (req, res) => {
 });
 
 app.use("/api/auth", authRouter);
+app.use("/api/v1/applications", applicationRouter);
 
 app.use((req, res) => {
   res.status(404).json({
