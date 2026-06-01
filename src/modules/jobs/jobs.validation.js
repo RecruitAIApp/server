@@ -12,7 +12,7 @@ const salaryRangeSchema = Joi.object({
     "string.min": "Currency must be at least 2 characters",
   }),
 }).external(async (data) => {
-  if (data.max < data.min) {
+  if (data && data.max < data.min) {
     throw new Error("Maximum salary must be >= minimum salary");
   }
 });
@@ -116,6 +116,10 @@ export const jobFilterSchema = Joi.object({
       .default("createdAt"),
     sortOrder: Joi.string().valid("asc", "desc").default("desc"),
   }).required(),
-  params: Joi.object().optional(),
+  params: Joi.object({
+    companyId: Joi.custom(isValidId).optional().messages({
+      "string.min": "Invalid company ID",
+    }),
+  }).optional(),
   body: Joi.object().optional(),
 });

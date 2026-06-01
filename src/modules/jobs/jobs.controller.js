@@ -36,7 +36,8 @@ export const getJobsByCompany = async (req, res, next) => {
   try {
     const result = await jobService.getJobsByCompanyService(
       req.params.companyId,
-      req.query
+      req.query,
+      req.user
     );
     return sendResponse(
       res,

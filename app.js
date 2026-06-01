@@ -8,6 +8,7 @@ import applicationRouter from "./src/modules/applications/applications.routes.js
 import companyRouter from "./src/modules/company/company.routes.js";
 import jobsRouter from "./src/modules/jobs/jobs.routes.js";
 import profileRouter from "./src/modules/profiles/profile.routes.js";
+import employerRouter from "./src/modules/employer/employer.routes.js";
 import testRouter from "./src/routes/test.routes.js";
 
 dotenv.config();
@@ -37,6 +38,7 @@ app.use("/api/v1/applications", applicationRouter);
 
 app.use("/api/companies", companyRouter);
 app.use("/api/jobs", jobsRouter);
+app.use("/api/employer", employerRouter);
 
 // Profile routes
 app.use("/api/profiles", profileRouter);

@@ -92,14 +92,32 @@ export const getJobsByEmployerService = async (userId, query , userRole) => {
   return buildPaginatedResponse(jobs, total, page, limit);
 };
 
-export const getJobsByCompanyService = async (companyId, query) => {
+export const getJobsByCompanyService = async (companyId, query, user = null) => {
   const company = await Company.findById(companyId);
   if (!company || company.status !== "active") {
     const error = new Error("Company not found");
     error.statusCode = 404;
     throw error;
   }
-  const filter = { company: companyId, status: "open", ...buildJobFilters(query) }
+  
+  let isMember = false;
+  if (user && user.role === "employer") {
+    const profile = await employerProfile.findOne({
+      userId: user.id,
+      companyId,
+    });
+    if (profile) {
+      isMember = true;
+    }
+  }
+
+  const filter = { company: companyId, ...buildJobFilters(query) };
+  if (!isMember) {
+    filter.status = "open";
+  } else if (query.status) {
+    filter.status = query.status;
+  }
+
   const { skip, limit, sort, page } = buildPaginationOptions(query);
 
   const [jobs, total] = await Promise.all([

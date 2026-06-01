@@ -8,6 +8,7 @@ export const validate = (schema) => async (req, res, next) => {
       },
       {
         abortEarly: false,
+        stripUnknown: true,
       }
     );
 
