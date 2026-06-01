@@ -57,10 +57,19 @@ export const addNoteSchema = Joi.object({
     }),
   }),
   body: Joi.object({
-    authorId: Joi.string().regex(objectIdRegex).required(), // Wait, let's make sure this is Joi, not joi
+    authorId: Joi.string().regex(objectIdRegex).required(),
     content: Joi.string().min(1).max(1000).required().messages({
       'string.empty': 'Note content cannot be empty'
     }),
     ratingScore: Joi.number().min(1).max(5).optional()
   })
+});
+
+export const applicationIdSchema = Joi.object({
+  params: Joi.object({
+    applicationId: Joi.string().regex(objectIdRegex).required().messages({
+      'string.pattern.base': 'Invalid application ID format',
+      'any.required': 'Application ID is required'
+    }),
+  }).required()
 });

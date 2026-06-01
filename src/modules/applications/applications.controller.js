@@ -46,3 +46,52 @@ export const updateApplicationStageController = async (req, res) => {
     });
   }
 }
+
+export const getApplicationsByJobController = async (req, res) => {
+  try {
+    const jobId = req.params.id;
+    const companyId = req.job.company;
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 20;
+
+    const paginationOptions = { page, limit };
+
+    const applications = await applicationService.getApplicationsByJob(jobId, companyId, paginationOptions);
+
+    return sendResponse(
+      res,
+      200,
+      true,
+      'Applications fetched successfully',
+      applications
+    );
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+export const retryScreeningController = async (req, res) => {
+  try {
+    const { applicationId } = req.params;
+    const userId = req.user.id;
+
+    const updated = await applicationService.retryScreening(applicationId, userId);
+
+    return sendResponse(
+      res,
+      200,
+      true,
+      'AI screening enqueued successfully',
+      updated
+    );
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+  
