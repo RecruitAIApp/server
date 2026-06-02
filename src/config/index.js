@@ -23,6 +23,14 @@ export const config = {
     accessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN || "1h",
     refreshExpiresIn: process.env.JWT_EXPIRES_IN || "7d",
   },
+  pinecone: {
+    apiKey: process.env.PINECONE_API_KEY,
+    indexName: process.env.PINECONE_INDEX || "recruit-ai",
+  },
+  embedding: {
+    model: "gemini-embedding-2",
+    taskType: "RETRIEVAL_DOCUMENT",
+  },
   llm: {
     google: {
       apiKey: process.env.GOOGLE_API_KEY,

@@ -12,3 +12,4 @@ export class AppError extends Error {
 //     throw error;
 // now we can create error objects like this
 // throw new AppError("Application not found", 404);
+export function createError() {}
