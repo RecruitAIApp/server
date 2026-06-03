@@ -19,12 +19,28 @@ const index = pinecone.Index(config.pinecone.indexName);
 export const VectorStoreService = {
   async embedAndSave(text, metadata = {}, namespace = "default", chunkOptions = {}) {
     try {
-      const splitter = new RecursiveCharacterTextSplitter({
-        chunkSize: chunkOptions.chunkSize || 1000,
-        chunkOverlap: chunkOptions.chunkOverlap || 200,
-      });
+      // Default to skipChunking: true as requested for jobs/cvs
+      const { 
+        skipChunking = true, 
+        chunkSize = 1000, 
+        chunkOverlap = 200 
+      } = chunkOptions;
 
-      const docs = await splitter.createDocuments([text], [metadata]);
+      let docs;
+      
+      if (skipChunking) {
+        // Create a single document without splitting
+        docs = [{
+          pageContent: text,
+          metadata: metadata
+        }];
+      } else {
+        const splitter = new RecursiveCharacterTextSplitter({
+          chunkSize,
+          chunkOverlap,
+        });
+        docs = await splitter.createDocuments([text], [metadata]);
+      }
 
       await PineconeStore.fromDocuments(docs, embeddings, {
         pineconeIndex: index,
