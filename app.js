@@ -9,6 +9,7 @@ import companyRouter from "./src/modules/company/company.routes.js";
 import jobsRouter from "./src/modules/jobs/jobs.routes.js";
 import profileRouter from "./src/modules/profiles/profile.routes.js";
 import employerRouter from "./src/modules/employer/employer.routes.js";
+import jobChatRouter from "./src/modules/job-chat/chat.routes.js";
 import testRouter from "./src/routes/test.routes.js";
 
 dotenv.config();
@@ -43,8 +44,11 @@ app.use("/api/employer", employerRouter);
 // Profile routes
 app.use("/api/profiles", profileRouter);
 
+// Job Chat routes
+app.use("/api/v1/job-chat", jobChatRouter);
+
 // Test routes (for development/testing)
-// app.use("/api/test", testRouter);
+app.use("/api/test", testRouter);
 
 app.use((req, res) => {
   res.status(404).json({
