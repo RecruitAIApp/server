@@ -26,3 +26,13 @@ export const trackingQueue = new Queue("TRACKING_QUEUE", {
     removeOnFail: 50,
   }
 })
+
+export const feedbackQueue = new Queue("FEEDBACK_QUEUE", {
+  connection: redisConnection,
+  defaultJobOptions: {
+    attempts: 3,
+    backoff: { type: "exponential", delay: 5000 },
+    removeOnComplete: 100,
+    removeOnFail: 50,
+  }
+})

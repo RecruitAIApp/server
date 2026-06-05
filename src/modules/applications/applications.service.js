@@ -4,6 +4,7 @@ import * as screeningQueue from './screening.queue.js';
 import * as timelineHelper from './timeline.helper.js';
 import { AppError } from '../../utils/error.js';
 import EmployerProfile from '../auth/employerProfile.model.js';
+import { enqueueFeedback } from './feedback.queue.js';
 
 /**
  * This is the main logic for applying to a job.
@@ -57,11 +58,23 @@ export const updateApplicationStage = async (applicationId, stageData) => {
     stage.key
   );
 
-  return await applicationRepo.updateStageAndTimeline(
+  const updatedApplication = await applicationRepo.updateStageAndTimeline(
     currentApplication,
     { stageKey: stage.key, notes, actorId },
     timelineEntry
   );
+
+  const STAGES_THAT_TRIGGER_FEEDBACK = ['shortlisted', 'interview', 'offer', 'hired', 'rejected'];
+  if (STAGES_THAT_TRIGGER_FEEDBACK.includes(stage.key)) {
+    try {
+      await enqueueFeedback(applicationId, notes);
+      console.log(`[Service] Successfully enqueued stage feedback/notification for application ${applicationId} (Stage: ${stage.key})`);
+    } catch (err) {
+      console.error(`[Service] Failed to enqueue stage feedback/notification:`, err.message);
+    }
+  }
+
+  return updatedApplication;
 };
 
 /**
