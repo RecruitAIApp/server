@@ -9,7 +9,7 @@ await connectDB();
 
 // Initialize the tracking agent worker once DB connection is established
 await import("../modules/applications/workers/tracking.worker.js");
-
+await import("../modules/applications/workers/feedback.worker.js");
 
 const WORKER_CONFIG = {
   "EMBED_RESUME": handleEmbedding,

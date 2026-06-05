@@ -9,13 +9,13 @@ import Application from '../application.model.js';
 export const fetchApplicationDataNode = async(state) => {
   const { applicationId } = state;
 
-  const application = await Application.findById(applicationId);
+  const application = await Application.findById({_id: applicationId});
 
   if(!application) {
     throw new AppError(`Application with ID ${applicationId} not found in DB`, 404);
   }
 
-  console.log(`Application with ID ${applicationId} fetched successfully`);
+  console.log(`[Tracking Node 1] Application with ID ${applicationId} fetched successfully`);
 
   return {
     overallScore: application.aiScreening?.overallScore || 0,
@@ -46,11 +46,10 @@ export const evaluateRulesAndUpdateDBNode = async (state) => {
     }
   };
 
-  // If the stage changed, add a timeline entry for auditing
   if (nextStage !== currentStage) {
     const timelineEntry = {
       type: 'STATUS_CHANGED',
-      actorId: null, // Null indicates system/AI action
+      actorId: null, 
       metadata: {
         from: currentStage,
         to: nextStage,
@@ -63,7 +62,7 @@ export const evaluateRulesAndUpdateDBNode = async (state) => {
 
   await Application.findByIdAndUpdate(applicationId, updateFields);
 
-  console.log(`[Tracking Agent] App ${applicationId} evaluated. Stage: ${nextStage}, AI Screening Status: ${screeningStatus}`);
+  console.log(`[Tracking Node 2] App ${applicationId} evaluated. Stage: ${nextStage}, AI Screening Status: ${screeningStatus}`);
 
   return {
     nextStage: nextStage
