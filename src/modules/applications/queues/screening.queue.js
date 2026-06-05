@@ -1,5 +1,5 @@
-import { aiAutomationQueue } from "../../config/queues.js";
-import { AppError } from "../../utils/error.js";
+import { aiAutomationQueue } from "../../../config/queues.js";
+import { AppError } from "../../../utils/error.js";
 
 /**
  * Enqueues a resume screening task in BullMQ.
@@ -20,4 +20,3 @@ export const enqueue = async (application) => {
     cvUrl: application.appliedResume.url,
   });
 };
-
