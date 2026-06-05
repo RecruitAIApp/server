@@ -1,4 +1,4 @@
-import { feedbackQueue } from "../../config/queues.js";
+import { feedbackQueue } from "../../../config/queues.js";
 
 /**
  * Enqueues a feedback agent email drafting/sending workflow run in BullMQ.
@@ -10,7 +10,7 @@ export const enqueueFeedback = async (applicationId, hrNotes) => {
     throw new Error("Feedback Queue is not initialized");
   }
 
-  await feedbackQueue.add("PROCESS_FEEDBACK", {
+  await feedbackQueue.add("SEND_FEEDBACK_EMAIL", {
     applicationId,
     hrNotes,
   });

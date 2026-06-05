@@ -1,10 +1,10 @@
 import * as applicationRepo from './application.repository.js';
 import * as jobRepo from '../jobs/job.repository.js';
-import * as screeningQueue from './screening.queue.js';
+import * as screeningQueue from './queues/screening.queue.js';
 import * as timelineHelper from './timeline.helper.js';
 import { AppError } from '../../utils/error.js';
 import EmployerProfile from '../auth/employerProfile.model.js';
-import { enqueueFeedback } from './feedback.queue.js';
+import { enqueueFeedback } from './queues/feedback.queue.js';
 
 /**
  * This is the main logic for applying to a job.

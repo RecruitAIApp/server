@@ -1,4 +1,4 @@
-import { trackingQueue } from "../../config/queues.js";
+import { trackingQueue } from "../../../config/queues.js";
 
 /**
  * Enqueues a tracking agent workflow run in BullMQ.
