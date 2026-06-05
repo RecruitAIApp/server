@@ -8,7 +8,7 @@
     "dev": "node --watch server.js",
     "worker": "node src/workers/background.worker.js",
     "worker:dev": "node --watch src/workers/background.worker.js",
-    "redis": "docker run -d --name redis-stack -p 6379:6379 -p 8001:8001 redis/redis-stack",
+    "redis": "docker run -d --name redis-stack -p 6380:6379 -p 8001:8001 redis/redis-stack",
     "docker": "docker start redis-stack"
   },
   "dependencies": {
