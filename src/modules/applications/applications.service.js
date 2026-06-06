@@ -175,10 +175,74 @@ export const retryScreening = async (applicationId, userId) => {
 };
 
 /**
- * Retrieves all applications for a given candidate.
- * @param {string} candidateId 
- * @returns {Array} List of formatted applications
+ * Gets details of a single application, checking permissions.
+ * @param {string} applicationId 
+ * @param {object} user 
+ * @returns {object} Application document
  */
-export const getMyApplications = async (candidateId) => {
-  return await applicationRepo.findByCandidateId(candidateId);
+export const getApplicationDetails = async (applicationId, user) => {
+  const application = await applicationRepo.findDetailsById(applicationId);
+  if (!application) {
+    throw new AppError("Application not found", 404);
+  }
+
+  if (user.role === 'candidate') {
+    if (application.candidateId._id.toString() !== user.id) {
+      throw new AppError("Forbidden: You do not have permission to view this application", 403);
+    }
+  } else if (user.role === 'employer') {
+    const profile = await EmployerProfile.findOne({
+      userId: user.id,
+      companyId: application.companyId,
+    });
+    if (!profile) {
+      throw new AppError("Forbidden: You do not have permission to view this application", 403);
+    }
+  } else {
+    throw new AppError("Forbidden: Invalid role", 403);
+  }
+
+  return application;
 };
+
+/**
+ * Fetches applications for a job grouped by stage for Kanban board view.
+ * @param {string} jobId 
+ * @param {string} companyId 
+ * @returns {object} Grouped applications
+ */
+export const getJobKanban = async (jobId, companyId) => {
+  return await applicationRepo.getKanbanByJob(jobId, companyId);
+};
+
+/**
+ * Adds notes and/or updates rating for an application.
+ * @param {string} applicationId 
+ * @param {object} noteData 
+ * @param {object} user 
+ * @returns {object} Updated application document
+ */
+export const addApplicationNote = async (applicationId, noteData, user) => {
+  const application = await applicationRepo.findByIdOrThrow(applicationId);
+
+  const profile = await EmployerProfile.findOne({
+    userId: user.id,
+    companyId: application.companyId,
+  });
+  if (!profile) {
+    throw new AppError("Forbidden: You do not have permission to comment on this application", 403);
+  }
+
+  const { content, ratingScore } = noteData;
+  return await applicationRepo.addNoteAndRating(applicationId, user.id, content, ratingScore);
+};
+
+/**
+ * Gets all applications submitted by a candidate.
+ * @param {string} candidateId 
+ * @returns {array} Applications list
+ */
+export const getCandidateApplications = async (candidateId) => {
+  return await applicationRepo.findCandidateApplications(candidateId);
+};
+

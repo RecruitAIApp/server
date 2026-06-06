@@ -6,7 +6,7 @@ import Job from '../jobs/job.model.js';
 export const applyToJobController = async (req, res) => {
   try {
     const applicationData = req.body;
-    
+
     // Auto-fill candidateId from auth context
     if (!applicationData.candidateId && req.user) {
       applicationData.candidateId = req.user.id || req.user._id;
@@ -29,10 +29,10 @@ export const applyToJobController = async (req, res) => {
     const newApplication = await applicationService.applyToJob(applicationData);
 
     return sendResponse(
-      res, 
-      201, 
-      true, 
-      'Application submitted successfully. AI screening is running in the background.', 
+      res,
+      201,
+      true,
+      'Application submitted successfully. AI screening is running in the background.',
       newApplication
     );
   } catch (error) {
@@ -51,10 +51,10 @@ export const quickApplyController = async (req, res) => {
     const newApplication = await applicationService.quickApply(jobId, userId);
 
     return sendResponse(
-      res, 
-      201, 
-      true, 
-      'Application submitted successfully. AI screening is running in the background.', 
+      res,
+      201,
+      true,
+      'Application submitted successfully. AI screening is running in the background.',
       newApplication
     );
   } catch (error) {
@@ -70,7 +70,7 @@ export const updateApplicationStageController = async (req, res) => {
   try {
     const { applicationId } = req.params;
     const stageData = req.body;
-    const actorId = req.user.userId;
+    const actorId = req.user.id || req.user.userId;
 
     const updated = await applicationService.updateApplicationStage(applicationId, {
       ...stageData,
@@ -121,7 +121,7 @@ export const getApplicationsByJobController = async (req, res) => {
 export const retryScreeningController = async (req, res) => {
   try {
     const { applicationId } = req.params;
-    const userId = req.user.id;
+    const userId = req.user.id || req.user.userId;
 
     const updated = await applicationService.retryScreening(applicationId, userId);
 
@@ -140,15 +140,20 @@ export const retryScreeningController = async (req, res) => {
   }
 };
 
-export const getMyApplicationsController = async (req, res) => {
+export const getApplicationDetailsController = async (req, res) => {
   try {
-    const candidateId = req.user.id || req.user._id;
-    const applications = await applicationService.getMyApplications(candidateId);
-    
-    return res.status(200).json({
-      success: true,
-      applications
-    });
+    const { applicationId } = req.params;
+    const user = req.user;
+
+    const application = await applicationService.getApplicationDetails(applicationId, user);
+
+    return sendResponse(
+      res,
+      200,
+      true,
+      'Application details fetched successfully',
+      application
+    );
   } catch (error) {
     return res.status(error.statusCode || 500).json({
       success: false,
@@ -156,4 +161,69 @@ export const getMyApplicationsController = async (req, res) => {
     });
   }
 };
-  
+
+export const getJobKanbanController = async (req, res) => {
+  try {
+    const jobId = req.params.id;
+    const companyId = req.job.company;
+
+    const kanban = await applicationService.getJobKanban(jobId, companyId);
+
+    return sendResponse(
+      res,
+      200,
+      true,
+      'Job Kanban fetched successfully',
+      kanban
+    );
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+export const addApplicationNoteController = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const noteData = req.body;
+    const user = req.user;
+
+    const updated = await applicationService.addApplicationNote(id, noteData, user);
+
+    return sendResponse(
+      res,
+      200,
+      true,
+      'Note added successfully',
+      updated
+    );
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+export const getCandidateApplicationsController = async (req, res) => {
+  try {
+    const candidateId = req.user.id || req.user.userId;
+
+    const applications = await applicationService.getCandidateApplications(candidateId);
+
+    return sendResponse(
+      res,
+      200,
+      true,
+      'My applications fetched successfully',
+      applications
+    );
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};

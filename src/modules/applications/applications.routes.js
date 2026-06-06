@@ -1,6 +1,11 @@
 import { Router } from "express";
 import { validate } from "../../common/middlewares/validation.middleware.js";
-import { createApplicationValidation, updateApplicationStageValidation, applicationIdSchema, quickApplyValidation } from "./applications.validation.js";
+import {
+  createApplicationValidation,
+  updateApplicationStageValidation,
+  applicationIdSchema, quickApplyValidation,
+  addNoteSchema
+} from "./applications.validation.js";
 import * as ApplicationController from "./applications.controller.js";
 import { protect } from "../../common/middlewares/auth.middleware.js";
 import { isCandidate, isEmployerOrHR, isJobOwner } from "../../common/middlewares/permissions.middleware.js";
@@ -10,11 +15,19 @@ import { cvPdfUpload } from "../../config/multer.config.js";
 
 const router = Router();
 
+// Candidate Routes
 router.post('/apply', [protect, isCandidate, cvPdfUpload.single('resume'), validate(createApplicationValidation)], ApplicationController.applyToJobController);
-router.get('/my-applications', [protect, isCandidate], ApplicationController.getMyApplicationsController);
+router.get('/my-applications', [protect, isCandidate], ApplicationController.getCandidateApplicationsController);
+
+// Shared / Detail Routes
+router.get('/:applicationId', [protect, validate(applicationIdSchema)], ApplicationController.getApplicationDetailsController);
+
+// Employer / HR Routes
 router.put('/update-stage/:applicationId', [protect, isEmployerOrHR], validate(updateApplicationStageValidation), ApplicationController.updateApplicationStageController);
 router.get('/job/:id', [protect, isEmployerOrHR, validate(jobIdSchema), isJobOwner], ApplicationController.getApplicationsByJobController);
+router.get('/job/:id/kanban', [protect, isEmployerOrHR, validate(jobIdSchema), isJobOwner], ApplicationController.getJobKanbanController);
 router.post('/retry-screening/:applicationId', [protect, isEmployerOrHR, validate(applicationIdSchema)], ApplicationController.retryScreeningController);
+router.post('/:id/notes', [protect, isEmployerOrHR, validate(addNoteSchema)], ApplicationController.addApplicationNoteController);
 router.post('/quick-apply', [protect, isCandidate, validate(quickApplyValidation)], ApplicationController.quickApplyController);
 
 export default router;

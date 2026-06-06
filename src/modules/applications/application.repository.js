@@ -60,7 +60,7 @@ export const save = async (applicationInstance) => {
 /**
  * Fetches applications for a job, populating candidate info.
  */
-export const findApplicationsByJob = async (jobId, companyId, {page = 1, limit = 20} = {}) => {
+export const findApplicationsByJob = async (jobId, companyId, { page = 1, limit = 20 } = {}) => {
   const applications = await Application.find({ jobId, companyId })
     .populate({ path: "candidateId", select: "name email profile.cvUrl" })
     .lean()
@@ -117,52 +117,105 @@ export const updateScreeningStatus = async (applicationId, status) => {
   );
 };
 
-/**
- * Maps a backend application stage key to a frontend display status.
- */
-const mapStageToStatus = (stageKey) => {
-  const map = {
-    applied: "Applied",
-    shortlisted: "In Review",
-    interview: "Interview Scheduled",
-    offer: "Offer Received",
-    hired: "Offer Received",
-    rejected: "Rejected"
-  };
-  return map[stageKey] || "Applied";
-};
+
 
 /**
- * Finds all applications for a given candidate, populated and formatted for the client.
+ * Fetches applications for a job, populating candidate info, and returns grouped by stage key.
  */
-export const findByCandidateId = async (candidateId) => {
-  const applications = await Application.find({ candidateId })
-    .populate({
-      path: 'jobId',
-      select: 'title location company companyId'
-    })
-    .populate({
-      path: 'companyId',
-      select: 'name logo'
-    })
+export const getKanbanByJob = async (jobId, companyId) => {
+  const applications = await Application.find({ jobId, companyId })
+    .populate({ path: "candidateId", select: "name email profile.cvUrl" })
     .sort({ createdAt: -1 })
     .lean();
 
-  return applications.map(app => {
-    const status = mapStageToStatus(app.stage?.key);
-    return {
-      id: app._id.toString(),
-      _id: app._id.toString(),
-      jobId: app.jobId?._id ? app.jobId._id.toString() : app.jobId?.toString(),
-      role: app.jobId?.title || "Unknown Role",
-      company: app.companyId?.name || "Unknown Company",
-      location: app.jobId?.location || "",
-      appliedDate: app.createdAt,
-      status,
-      aiScore: app.aiScreening?.overallScore ?? null,
-      logo: app.companyId?.logo || "💼",
-    };
+  const stages = {
+    applied: [],
+    shortlisted: [],
+    interview: [],
+    offer: [],
+    hired: [],
+    rejected: []
+  };
+
+  applications.forEach(app => {
+    const stageKey = app.stage?.key || 'applied';
+    if (stages[stageKey]) {
+      stages[stageKey].push(app);
+    } else {
+      // In case of any custom stage keys
+      if (!stages[stageKey]) {
+        stages[stageKey] = [];
+      }
+      stages[stageKey].push(app);
+    }
   });
+
+  return stages;
 };
 
+/**
+ * Adds a note and/or rating vote to an application.
+ */
+export const addNoteAndRating = async (applicationId, actorId, noteContent, ratingScore) => {
+  const application = await Application.findById(applicationId);
+  if (!application) {
+    throw new AppError("Application not found", 404);
+  }
 
+  // 1. Add Note if provided
+  if (noteContent && noteContent.trim() !== "") {
+    application.notes.push({
+      authorId: actorId,
+      content: noteContent,
+      createdAt: new Date()
+    });
+  }
+
+  // 2. Add or Update rating vote if provided
+  if (typeof ratingScore === "number") {
+    if (!application.internalRating) {
+      application.internalRating = { average: 0, votes: [] };
+    }
+
+    const existingVoteIndex = application.internalRating.votes.findIndex(
+      (v) => v.recruiterId.toString() === actorId.toString()
+    );
+
+    if (existingVoteIndex > -1) {
+      application.internalRating.votes[existingVoteIndex].score = ratingScore;
+    } else {
+      application.internalRating.votes.push({
+        recruiterId: actorId,
+        score: ratingScore
+      });
+    }
+
+    // Recalculate average
+    const totalVotes = application.internalRating.votes.length;
+    const sumVotes = application.internalRating.votes.reduce((sum, v) => sum + v.score, 0);
+    application.internalRating.average = totalVotes > 0 ? sumVotes / totalVotes : 0;
+  }
+
+  return await application.save();
+};
+
+/**
+ * Finds all applications submitted by a specific candidate.
+ */
+export const findCandidateApplications = async (candidateId) => {
+  return await Application.find({ candidateId })
+    .populate({ path: "jobId", select: "title location jobType employmentType" })
+    .populate({ path: "companyId", select: "name logo website" })
+    .sort({ createdAt: -1 })
+    .lean();
+};
+
+/**
+ * Finds an application by ID with fully populated candidate, job, and company info.
+ */
+export const findDetailsById = async (applicationId) => {
+  return await Application.findById(applicationId)
+    .populate({ path: "candidateId", select: "name email profile" })
+    .populate({ path: "jobId", select: "title location jobType employmentType" })
+    .populate({ path: "companyId", select: "name logo website" });
+};
