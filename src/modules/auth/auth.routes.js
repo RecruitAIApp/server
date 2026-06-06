@@ -54,25 +54,4 @@ router.post("/forgot-password", authController.forgotPassword);
 // POST /api/auth/reset-password
 router.post("/reset-password", authController.resetPassword);
 
-// Candidate profile builder 
-router.get(
-  "/profile",
-  authenticate,
-  allowRoles("candidate"),
-  profileController.getProfile,
-);
-router.put(
-  "/profile",
-  authenticate,
-  allowRoles("candidate"),
-  profileController.updateProfile,
-);
-router.post(
-  "/profile/cv",
-  authenticate,
-  allowRoles("candidate"),
-  cvPdfUpload.single("cv"),
-  profileController.uploadCV,
-);
-
 export default router;

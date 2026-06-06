@@ -1,22 +1,27 @@
 import { Worker } from "bullmq";
+import { PDFParse } from "pdf-parse";
 import { redisConnection } from "../config/redis.config.js";
 import CandidateProfile from "../modules/auth/candidateProfile.model.js";
 import profileService from "../modules/profiles/profile.service.js";
 import { getSignedCVDownloadUrl } from "../modules/auth/cv.service.js";
 import { LLMFactory } from "../modules/llm/llm.service.js";
 import { connectDB } from "../config/db.config.js";
+import { parsedCVSchema } from "../modules/profiles/cv.validation.js";
+import { createLogger } from "../utils/logger.js";
 import dotenv from "dotenv";
 
 dotenv.config();
 
 await connectDB();
 
-const llm = LLMFactory.create("google");
+const logger = createLogger("cv-worker");
+const llm = LLMFactory.create(process.env.LLM_PROVIDER || "groq");
+const MAX_RETRIES = 3;
 
-/** Extract public_id from a Cloudinary raw PDF delivery URL (legacy jobs). */
+/** Extract public_id from a Cloudinary raw PDF delivery URL. */
 function publicIdFromUrl(cvUrl) {
   if (!cvUrl) return null;
-  const match = cvUrl.match(/\/raw\/upload\/(?:v\d+\/)?(.+?)\.pdf(?:\?.*)?$/i);
+  const match = cvUrl.match(/\/raw\/upload\/(?:v\d+\/)?([^?#]+)/i);
   return match?.[1] ?? null;
 }
 
@@ -34,12 +39,26 @@ async function fetchPDFText(publicId, cvUrl) {
       `Failed to fetch CV: ${res.status}. If this is a PDF, enable "PDF and ZIP files delivery" in Cloudinary Settings → Security.`,
     );
   }
-  const buffer = await res.arrayBuffer();
-  const text = Buffer.from(buffer)
-    .toString("latin1")
-    .replace(/[^\x20-\x7E\n\r\t]/g, " ")
-    .replace(/\s{3,}/g, "\n")
-    .slice(0, 12000);
+  const buffer = Buffer.from(await res.arrayBuffer());
+
+  // Use pdf-parse to extract real text from the PDF
+  const parser = new PDFParse({ data: buffer });
+  let text = "";
+  try {
+    const pdfData = await parser.getText();
+    text = (pdfData.text || "")
+      .replace(/[^\x20-\x7E\n\r\t\u00C0-\u024F\u0600-\u06FF]/g, " ")
+      .replace(/\s{3,}/g, "\n")
+      .trim()
+      .slice(0, 12000);
+  } finally {
+    await parser.destroy();
+  }
+
+  if (!text || text.length < 20) {
+    throw new Error("Could not extract readable text from PDF. The file may be image-based or corrupted.");
+  }
+
   return text;
 }
 
@@ -56,6 +75,27 @@ Return ONLY valid JSON with this exact schema:
 CV TEXT:
 ${text}
 `.trim();
+
+async function callLLMWithRetries(prompt) {
+  let lastError;
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const response = await llm.send([{ role: "human", content: prompt }]);
+      const content = response.content ?? "";
+      const jsonMatch = String(content).match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error("LLM returned no JSON");
+      const parsedJson = JSON.parse(jsonMatch[0]);
+      return parsedCVSchema.parse(parsedJson);
+    } catch (e) {
+      lastError = e;
+      logger.warn(`LLM attempt ${attempt}/${MAX_RETRIES} failed`, { error: e.message });
+      if (attempt < MAX_RETRIES) {
+        await new Promise((r) => setTimeout(r, 2000 * attempt));
+      }
+    }
+  }
+  throw lastError;
+}
 
 const worker = new Worker(
   "cv-parse",
@@ -83,21 +123,25 @@ const worker = new Worker(
 
     let parsed;
     try {
-      const response = await llm.send([
-        { role: "human", content: parsePrompt(rawText) },
-      ]);
-
-      const content = response.content ?? "";
-      const jsonMatch = String(content).match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error("LLM returned no JSON");
-      parsed = JSON.parse(jsonMatch[0]);
+      parsed = await callLLMWithRetries(parsePrompt(rawText));
     } catch (e) {
+      // All retries exhausted — save fallback and mark done
+      logger.error(`All ${MAX_RETRIES} LLM attempts failed for profile ${profileId}. Saving fallback.`, e);
       await CandidateProfile.findByIdAndUpdate(profileId, {
-        "resume.parseStatus": "failed",
-        "resume.parseError": `LLM parse failed: ${e.message}`,
-        "resume.parsedData.rawText": rawText,
+        "resume.parseStatus": "done",
+        "resume.parsedAt": new Date(),
+        "resume.parseError": `AI parsing failed after ${MAX_RETRIES} attempts: ${e.message}. You can edit your profile manually.`,
+        "resume.parsedData": {
+          skills: [],
+          jobTitles: [],
+          experienceYears: 0,
+          summary: "CV was uploaded but automatic parsing could not extract data. Please fill in your profile details manually.",
+          rawText: rawText.slice(0, 5000),
+        },
       });
-      throw e;
+      await profileService.syncProfileCompletion(profileId);
+      logger.info(`Fallback saved for profile ${profileId}`);
+      return; // don't re-throw — job is "done" with fallback
     }
 
     await CandidateProfile.findByIdAndUpdate(profileId, {
@@ -115,7 +159,7 @@ const worker = new Worker(
 
     await profileService.syncProfileCompletion(profileId);
 
-    console.log(`[cv-parse-worker] Done for profile ${profileId}`);
+    logger.info(`Done for profile ${profileId}`);
   },
   {
     connection: redisConnection,
@@ -124,11 +168,12 @@ const worker = new Worker(
 );
 
 worker.on("failed", (job, err) => {
-  console.error(`[cv-parse-worker] Job ${job?.id} failed:`, err.message);
+  logger.error(`Job ${job?.id} failed`, err);
 });
 
 worker.on("completed", (job) => {
-  console.log(`[cv-parse-worker] Job ${job.id} completed`);
+  logger.info(`Job ${job.id} completed`);
 });
 
-console.log("[cv-parse-worker] Worker started");
+logger.info("Worker started");
+

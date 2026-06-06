@@ -8,12 +8,12 @@ import { AppError } from "../../utils/error.js";
 export const assertJobIsOpen = async (jobId) => {
   const job = await Job.findOne({
     _id: jobId,
-    status: "active",
-    $or: [
-      { deadline: { $exists: false } },
-      { deadline: null },
-      { deadline: { $gt: new Date() } }
-    ]
+    status: "open",
+    // $or: [
+    //   { applicationDeadline: { $exists: false } },
+    //   { applicationDeadline: null },
+    //   { applicationDeadline: { $gt: new Date() } }
+    // ]
   });
 
   if (!job) {

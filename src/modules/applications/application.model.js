@@ -74,7 +74,7 @@ const applicationSchema = new mongoose.Schema(
 
       redFlags: [
         {
-          type: String,
+          type: { type: String },
 
           severity: {
             type: String,

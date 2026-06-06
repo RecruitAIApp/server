@@ -10,6 +10,11 @@ const candidateProfileSchema = new mongoose.Schema(
       index: true,
     },
 
+    profilePicture: {
+      url: String,
+      publicId: String,
+    },
+
     basicInfo: {
       headline: {
         type: String,
@@ -105,6 +110,27 @@ const candidateProfileSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+
+    savedJobs: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Job",
+      },
+    ],
+
+    views: [
+      {
+        viewerId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          required: true,
+        },
+        viewedAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
   },
   {
     timestamps: true,

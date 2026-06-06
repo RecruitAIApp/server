@@ -8,8 +8,15 @@
     "dev": "node --watch server.js",
     "worker": "node src/workers/background.worker.js",
     "worker:dev": "node --watch src/workers/background.worker.js",
+    "worker:cv": "node src/workers/cv.worker.js",
+    "worker:cv:dev": "node --watch src/workers/cv.worker.js",
+    "worker:automation": "node src/workers/automation.worker.js",
+    "worker:automation:dev": "node --watch src/workers/automation.worker.js",
     "redis": "docker run -d --name redis-stack -p 6380:6379 -p 8001:8001 redis/redis-stack",
-    "docker": "docker start redis-stack"
+    "docker": "docker start redis-stack",
+    "seed": "node src/seed/index.js",
+    "test": "node --test --test-concurrency=1 src/tests/**/*.test.js",
+    "dev:all": "concurrently \"npm run dev\" \"npm run worker:dev\" \"npm run worker:cv:dev\" \"npm run worker:automation:dev\""
   },
   "dependencies": {
     "@langchain/core": "^1.1.48",
@@ -36,7 +43,12 @@
     "morgan": "^1.10.1",
     "multer": "^2.1.1",
     "nodemailer": "^8.0.8",
+    "pdf-parse": "^2.4.5",
     "socket.io": "^4.8.3",
     "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.3",
+    "supertest": "^7.2.2"
   }
 }

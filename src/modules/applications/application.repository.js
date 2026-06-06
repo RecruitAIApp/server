@@ -117,4 +117,52 @@ export const updateScreeningStatus = async (applicationId, status) => {
   );
 };
 
+/**
+ * Maps a backend application stage key to a frontend display status.
+ */
+const mapStageToStatus = (stageKey) => {
+  const map = {
+    applied: "Applied",
+    shortlisted: "In Review",
+    interview: "Interview Scheduled",
+    offer: "Offer Received",
+    hired: "Offer Received",
+    rejected: "Rejected"
+  };
+  return map[stageKey] || "Applied";
+};
+
+/**
+ * Finds all applications for a given candidate, populated and formatted for the client.
+ */
+export const findByCandidateId = async (candidateId) => {
+  const applications = await Application.find({ candidateId })
+    .populate({
+      path: 'jobId',
+      select: 'title location company companyId'
+    })
+    .populate({
+      path: 'companyId',
+      select: 'name logo'
+    })
+    .sort({ createdAt: -1 })
+    .lean();
+
+  return applications.map(app => {
+    const status = mapStageToStatus(app.stage?.key);
+    return {
+      id: app._id.toString(),
+      _id: app._id.toString(),
+      jobId: app.jobId?._id ? app.jobId._id.toString() : app.jobId?.toString(),
+      role: app.jobId?.title || "Unknown Role",
+      company: app.companyId?.name || "Unknown Company",
+      location: app.jobId?.location || "",
+      appliedDate: app.createdAt,
+      status,
+      aiScore: app.aiScreening?.overallScore ?? null,
+      logo: app.companyId?.logo || "💼",
+    };
+  });
+};
+
 

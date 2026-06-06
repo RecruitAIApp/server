@@ -5,21 +5,40 @@
 export const buildJobFilters = (query) => {
   const filter = {};
 
+  const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
   if (query.status) filter.status = query.status;
-  if (query.jobType) filter.jobType = query.jobType;
-  if (query.employmentType) filter.employmentType = query.employmentType;
-  if (query.experienceLevel) filter.experienceLevel = query.experienceLevel;
+
+  if (query.jobType) {
+    const types = query.jobType.split(",").map(t => t.trim().toLowerCase());
+    filter.jobType = types.length > 1 ? { $in: types } : types[0];
+  }
+
+  if (query.employmentType) {
+    const types = query.employmentType.split(",").map(t => t.trim().toLowerCase());
+    filter.employmentType = types.length > 1 ? { $in: types } : types[0];
+  }
+
+  if (query.experienceLevel) {
+    const levels = query.experienceLevel.split(",").map(l => l.trim().toLowerCase());
+    filter.experienceLevel = levels.length > 1 ? { $in: levels } : levels[0];
+  }
+
   if (query.company) filter.company = query.company;
 
   // Case-insensitive partial match on location
-  const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   if (query.location) {
     filter.location = { $regex: escapeRegex(query.location), $options: "i" };
   }
 
-  // Full-text search on title + description + skills
+  // Case-insensitive partial match on title, description, or skills
   if (query.search) {
-    filter.$text = { $search: query.search };
+    const searchRegex = { $regex: escapeRegex(query.search), $options: "i" };
+    filter.$or = [
+      { title: searchRegex },
+      { description: searchRegex },
+      { skills: searchRegex }
+    ];
   }
 
   // Salary range filter
