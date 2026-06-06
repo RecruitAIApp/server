@@ -8,13 +8,11 @@ export const createApplicationSchema = Joi.object({
       'string.pattern.base': 'Invalid job ID format',
       'any.required': 'Job ID is required'
     }),
-    candidateId: Joi.string().regex(objectIdRegex).required().messages({
-      'string.pattern.base': 'Invalid candidate ID format',
-      'any.required': 'Candidate ID is required'
+    candidateId: Joi.string().regex(objectIdRegex).optional().messages({
+      'string.pattern.base': 'Invalid candidate ID format'
     }),
-    companyId: Joi.string().regex(objectIdRegex).required().messages({
-      'string.pattern.base': 'Invalid company ID format',
-      'any.required': 'Company ID is required'
+    companyId: Joi.string().regex(objectIdRegex).optional().messages({
+      'string.pattern.base': 'Invalid company ID format'
     }),
     appliedResume: Joi.object({
       url: Joi.string().uri().required().messages({
@@ -22,7 +20,7 @@ export const createApplicationSchema = Joi.object({
       }),
       publicId: Joi.string().required(),
       fileName: Joi.string().required()
-    }).required()
+    }).optional()
   }).required()
 });
 
@@ -73,3 +71,14 @@ export const applicationIdSchema = Joi.object({
     }),
   }).required()
 });
+
+export const quickApplySchema = Joi.object({
+  body: Joi.object({
+    jobId: Joi.string().regex(objectIdRegex).required().messages({
+      'string.pattern.base': 'Invalid job ID format',
+      'any.required': 'Job ID is required'
+    })
+  }).required()
+});
+
+export const quickApplyValidation = quickApplySchema;
