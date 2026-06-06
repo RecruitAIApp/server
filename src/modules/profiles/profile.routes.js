@@ -4,7 +4,7 @@ import {
   authenticate,
   allowRoles,
 } from "../../common/middlewares/auth.middleware.js";
-import { cvPdfUpload } from "../../config/multer.config.js";
+import { cvPdfUpload, avatarUpload } from "../../config/multer.config.js";
 
 const router = express.Router();
 
@@ -31,6 +31,39 @@ router.post(
   allowRoles("candidate"),
   cvPdfUpload.single("cv"),
   profileController.uploadCV,
+);
+
+// POST /api/profiles/avatar
+router.post(
+  "/avatar",
+  authenticate,
+  allowRoles("candidate"),
+  avatarUpload.single("avatar"),
+  profileController.uploadAvatar,
+);
+
+// GET /api/profiles/saved-jobs
+router.get(
+  "/saved-jobs",
+  authenticate,
+  allowRoles("candidate"),
+  profileController.getSavedJobs,
+);
+
+// POST /api/profiles/saved-jobs/:jobId
+router.post(
+  "/saved-jobs/:jobId",
+  authenticate,
+  allowRoles("candidate"),
+  profileController.saveJob,
+);
+
+// DELETE /api/profiles/saved-jobs/:jobId
+router.delete(
+  "/saved-jobs/:jobId",
+  authenticate,
+  allowRoles("candidate"),
+  profileController.unsaveJob,
 );
 
 export default router;
