@@ -97,13 +97,30 @@ export const jobIdSchema = Joi.object({
 export const jobFilterSchema = Joi.object({
   query: Joi.object({
     status: Joi.string().valid("open", "closed", "pending").optional(),
-    jobType: Joi.string().valid("remote", "onsite", "hybrid").optional(),
-    employmentType: Joi.string()
-      .valid("full-time", "part-time", "contract", "internship", "freelance")
-      .optional(),
-    experienceLevel: Joi.string()
-      .valid("entry", "mid", "senior", "lead", "executive")
-      .optional(),
+    jobType: Joi.string().custom((value, helpers) => {
+      const parts = value.split(",");
+      const validTypes = ["remote", "onsite", "hybrid"];
+      if (parts.every(p => validTypes.includes(p.trim().toLowerCase()))) {
+        return value;
+      }
+      return helpers.error("any.invalid");
+    }).optional(),
+    employmentType: Joi.string().custom((value, helpers) => {
+      const parts = value.split(",");
+      const validTypes = ["full-time", "part-time", "contract", "internship", "freelance"];
+      if (parts.every(p => validTypes.includes(p.trim().toLowerCase()))) {
+        return value;
+      }
+      return helpers.error("any.invalid");
+    }).optional(),
+    experienceLevel: Joi.string().custom((value, helpers) => {
+      const parts = value.split(",");
+      const validTypes = ["entry", "mid", "senior", "lead", "executive"];
+      if (parts.every(p => validTypes.includes(p.trim().toLowerCase()))) {
+        return value;
+      }
+      return helpers.error("any.invalid");
+    }).optional(),
     location: Joi.string().optional(),
     company: Joi.string().optional(),
     search: Joi.string().optional(),

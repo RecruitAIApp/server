@@ -16,10 +16,9 @@ const WORKER_CONFIG = {
 };
 
 const worker = new Worker(
-  "AI_AUTOMATION_QUEUE",
+  "PROCESSING_QUEUE",
   async (job) => {
     const { name, data } = job;
-    // Note: screening.queue.js adds jobs with name "PROCESS_SCREENING"
     const handler = WORKER_CONFIG[name];
 
     if (!handler) {
@@ -44,4 +43,4 @@ worker.on("failed", (job, err) => {
   logger.error(`Job ${job.id} [${job.name}] failed`, err);
 });
 
-logger.info("automation-worker process started (AI Automation Queue)");
+logger.info("automation-worker process started (PROCESSING_QUEUE)");

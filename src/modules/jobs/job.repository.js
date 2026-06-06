@@ -9,11 +9,11 @@ export const assertJobIsOpen = async (jobId) => {
   const job = await Job.findOne({
     _id: jobId,
     status: "open",
-    $or: [
-      { deadline: { $exists: false } },
-      { deadline: null },
-      { deadline: { $gt: new Date() } }
-    ]
+    // $or: [
+    //   { applicationDeadline: { $exists: false } },
+    //   { applicationDeadline: null },
+    //   { applicationDeadline: { $gt: new Date() } }
+    // ]
   });
 
   if (!job) {
