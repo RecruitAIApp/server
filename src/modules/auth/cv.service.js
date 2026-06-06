@@ -25,8 +25,13 @@ export async function uploadCVToCloudinary(buffer, originalName) {
         resource_type: "raw",
         type: "upload",
         access_mode: "public",
-        public_id: `cv_${Date.now()}_${originalName.replace(/\.[^/.]+$/, "").replace(/[^a-z0-9]/gi, "_")}`,
-        // Store original file name separately; public_id omits extension for proper Cloudinary download.
+        public_id: (() => {
+          const extension = originalName.split(".").pop() || "pdf";
+          const nameWithoutExt = originalName
+            .replace(/\.[^/.]+$/, "")
+            .replace(/[^a-z0-9]/gi, "_");
+          return `cv_${Date.now()}_${nameWithoutExt}.${extension}`;
+        })(),
       },
       (error, result) => {
         if (error) return reject(error);
@@ -67,6 +72,6 @@ export async function enqueueCVParse(profileId, cvUrl, publicId) {
   await cvParseQueue.add(
     "parse-cv",
     { profileId, cvUrl, publicId },
-    { jobId: `cv-parse-${profileId}` },
+    { jobId: `cv-parse-${profileId}-${Date.now()}` },
   );
 }
