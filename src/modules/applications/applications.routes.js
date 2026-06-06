@@ -11,6 +11,7 @@ import { cvPdfUpload } from "../../config/multer.config.js";
 const router = Router();
 
 router.post('/apply', [protect, isCandidate, cvPdfUpload.single('resume'), validate(createApplicationValidation)], ApplicationController.applyToJobController);
+router.get('/my-applications', [protect, isCandidate], ApplicationController.getMyApplicationsController);
 router.put('/update-stage/:applicationId', [protect, isEmployerOrHR], validate(updateApplicationStageValidation), ApplicationController.updateApplicationStageController);
 router.get('/job/:id', [protect, isEmployerOrHR, validate(jobIdSchema), isJobOwner], ApplicationController.getApplicationsByJobController);
 router.post('/retry-screening/:applicationId', [protect, isEmployerOrHR, validate(applicationIdSchema)], ApplicationController.retryScreeningController);

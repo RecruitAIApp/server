@@ -46,7 +46,7 @@ export const applyToJobController = async (req, res) => {
 export const quickApplyController = async (req, res) => {
   try {
     const { jobId } = req.body;
-    const userId = req.user.id;
+    const userId = req.user.id || req.user._id;
 
     const newApplication = await applicationService.quickApply(jobId, userId);
 
@@ -132,6 +132,23 @@ export const retryScreeningController = async (req, res) => {
       'AI screening enqueued successfully',
       updated
     );
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+export const getMyApplicationsController = async (req, res) => {
+  try {
+    const candidateId = req.user.id || req.user._id;
+    const applications = await applicationService.getMyApplications(candidateId);
+    
+    return res.status(200).json({
+      success: true,
+      applications
+    });
   } catch (error) {
     return res.status(error.statusCode || 500).json({
       success: false,

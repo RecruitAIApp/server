@@ -173,3 +173,12 @@ export const retryScreening = async (applicationId, userId) => {
 
   return application;
 };
+
+/**
+ * Retrieves all applications for a given candidate.
+ * @param {string} candidateId 
+ * @returns {Array} List of formatted applications
+ */
+export const getMyApplications = async (candidateId) => {
+  return await applicationRepo.findByCandidateId(candidateId);
+};
