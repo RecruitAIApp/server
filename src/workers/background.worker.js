@@ -1,12 +1,14 @@
 import { Worker } from "bullmq";
 import { redisConnection } from "../config/redis.config.js";
 import { connectDB } from "../config/db.config.js";
+import { createLogger } from "../utils/logger.js";
 
 import { handleEmbedding } from "./handlers/embedding.handler.js";
 import { handleCVParse } from "./handlers/cv-parse.handler.js";
 
 await connectDB();
 
+const logger = createLogger("background-worker");
 
 const WORKER_CONFIG = {
   "EMBED_RESUME": handleEmbedding,
@@ -21,11 +23,11 @@ const worker = new Worker(
     const handler = WORKER_CONFIG[type];
 
     if (!handler) {
-      console.warn(`[worker] No handler registered for job type: ${type}`);
+      logger.warn(`No handler registered for job type: ${type}`);
       return;
     }
 
-    console.log(`[worker] Job ${job.id} | Starting: ${type}`);
+    logger.info(`Job ${job.id} | Starting: ${type}`);
     await handler(data);
   },
   {
@@ -35,11 +37,11 @@ const worker = new Worker(
 );
 
 worker.on("completed", (job) => {
-  console.log(`[worker] Job ${job.id} [${job.data.type}] completed`);
+  logger.info(`Job ${job.id} [${job.data.type}] completed`);
 });
 
 worker.on("failed", (job, err) => {
-  console.error(`[worker] Job ${job.id} [${job.data.type}] failed:`, err.message);
+  logger.error(`Job ${job.id} [${job.data.type}] failed`, err);
 });
 
-console.log("[worker] background-worker process started (Unified Config Mode)");
+logger.info("background-worker process started (Unified Config Mode)");

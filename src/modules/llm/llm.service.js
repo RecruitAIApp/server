@@ -72,7 +72,7 @@ export const LLMFactory = Object.freeze({
     if (!allowedModels.includes(merged.model)) {
       throw new LLMConfigError(
         `Model "${merged.model}" is not supported by provider "${provider}". ` +
-          `Allowed models: ${allowedModels.join(", ")}`,
+        `Allowed models: ${allowedModels.join(", ")}`,
       );
     }
 
