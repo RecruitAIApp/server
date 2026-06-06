@@ -4,6 +4,7 @@ import { uploadCVToCloudinary, enqueueCVParse } from "../auth/cv.service.js";
 import cloudinary from "../../config/cloudinary.config.js";
 import { Readable } from "stream";
 import { createError } from "../../utils/error.js";
+import { enqueueResumeEmbedding } from "../vectorstore/candidate-embedding.service.js";
 
 class ProfileService {
   /**
@@ -131,6 +132,9 @@ class ProfileService {
     profile.profileCompletion = this.calculateProfileCompletion(user, profile);
     await profile.save();
 
+    // Trigger candidate embedding generation in the background asynchronously
+    await enqueueResumeEmbedding(profile);
+
     return {
       ...profile.toObject(),
       fullName: user.fullName ?? null,
@@ -198,6 +202,10 @@ class ProfileService {
 
     profile.profileCompletion = this.calculateProfileCompletion(user, profile);
     await profile.save();
+    
+    // Trigger candidate embedding generation in the background asynchronously
+    await enqueueResumeEmbedding(profile);
+    
     return profile;
   }
   /**

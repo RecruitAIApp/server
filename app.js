@@ -12,6 +12,7 @@ import employerRouter from "./src/modules/employer/employer.routes.js";
 import jobChatRouter from "./src/modules/job-chat/chat.routes.js";
 import notificationRouter from "./src/modules/notifications/notification.routes.js";
 import testRouter from "./src/routes/test.routes.js";
+import recommendationRouter from "./src/modules/recommendations/recommendation.routes.js";
 
 dotenv.config();
 const app = express();
@@ -45,6 +46,9 @@ app.use("/api/employer", employerRouter);
 
 // Profile routes
 app.use("/api/profiles", profileRouter);
+
+// Recommendation routes
+app.use("/api/recommendations", recommendationRouter);
 
 // Job Chat routes
 app.use("/api/v1/job-chat", jobChatRouter);

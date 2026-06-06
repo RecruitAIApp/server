@@ -10,6 +10,9 @@ import authService from "../modules/auth/auth.service.js";
 import notificationService from "../modules/notifications/notification.service.js";
 import { enqueueJobEmbedding } from "../modules/jobs/queues/job.queue.js";
 import { updateJobService, deleteJobService } from "../modules/jobs/job.service.js";
+import { enqueueResumeEmbedding } from "../modules/vectorstore/candidate-embedding.service.js";
+import { getRecommendationsForCandidate } from "../modules/recommendations/recommendation.service.js";
+import CandidateProfile from "../modules/auth/candidateProfile.model.js";
 
 const router = express.Router();
 
@@ -412,6 +415,134 @@ router.post("/test-full-update-flow", async (req, res) => {
         jobId: job._id,
         finalTitle: updatedJob.title
       }
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+});
+
+/**
+ * Setup test for Candidate Embedding
+ * Triggers resume embedding generation for a test candidate profile
+ */
+router.post("/setup-candidate-embedding-test", async (req, res) => {
+  try {
+    // 1. Get or Create Candidate
+    let candidate = await User.findOne({ email: "candidate@test.com" });
+    if (!candidate) {
+      candidate = await User.create({
+        email: "candidate@test.com",
+        password: "password123",
+        fullName: "Test Candidate",
+        role: "candidate",
+        status: "active",
+        isActive: true,
+      });
+    }
+
+    // 2. Get or Create Candidate Profile
+    let profile = await CandidateProfile.findOne({ userId: candidate._id });
+    if (!profile) {
+      profile = await CandidateProfile.create({
+        userId: candidate._id,
+        skills: ["Node.js", "Express", "MongoDB", "AI", "React"],
+        preferredRoles: ["Backend Engineer", "Software Engineer"],
+        technologies: ["JavaScript", "TypeScript", "Python"],
+        experience: [
+          {
+            company: "Tech Solutions Inc.",
+            title: "Software Engineer",
+            startDate: new Date(2023, 0, 1),
+            endDate: new Date(2025, 0, 1),
+            currentlyWorking: false,
+            description: "Developed backend APIs using Node.js, Express, and MongoDB. Worked on AI integrations."
+          }
+        ],
+        education: [
+          {
+            institution: "State University",
+            degree: "Bachelor of Science",
+            field: "Computer Science",
+            startYear: 2019,
+            endYear: 2023
+          }
+        ],
+        resume: {
+          parseStatus: "done",
+          parsedData: {
+            skills: ["Node.js", "MongoDB", "Express", "React"],
+            experienceYears: 2,
+            jobTitles: ["Software Engineer"],
+            summary: "Enthusiastic backend engineer with hands-on experience in building scalable web APIs and integrating AI solutions."
+          }
+        }
+      });
+    } else {
+      // Update fields to test update triggers
+      profile.skills = ["Node.js", "Express", "MongoDB", "AI", "React"];
+      profile.preferredRoles = ["Backend Engineer", "Software Engineer"];
+      profile.technologies = ["JavaScript", "TypeScript", "Python"];
+      profile.resume = {
+        parseStatus: "done",
+        parsedData: {
+          skills: ["Node.js", "MongoDB", "Express", "React"],
+          experienceYears: 2,
+          jobTitles: ["Software Engineer"],
+          summary: "Enthusiastic backend engineer with hands-on experience in building scalable web APIs and integrating AI solutions."
+        }
+      };
+      await profile.save();
+    }
+
+    // 3. Manually enqueue candidate resume embedding
+    await enqueueResumeEmbedding(profile);
+
+    res.status(200).json({
+      success: true,
+      message: "Candidate profile setup and enqueued for embedding. Check background worker logs.",
+      data: {
+        profileId: profile._id,
+        userId: candidate._id,
+      }
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+});
+
+/**
+ * Test Recommendations endpoint directly
+ */
+router.get("/recommendations-test", async (req, res) => {
+  try {
+    const candidate = await User.findOne({ email: "candidate@test.com" });
+    if (!candidate) {
+      return res.status(400).json({
+        success: false,
+        message: "Run /api/test/setup-candidate-embedding-test first to create candidate."
+      });
+    }
+
+    const { location, employmentType, seniority, rerank } = req.query;
+
+    const options = {
+      location,
+      employmentType,
+      seniority,
+      rerank: rerank === "false" ? false : true
+    };
+
+    const results = await getRecommendationsForCandidate(candidate._id, options);
+
+    res.status(200).json({
+      success: true,
+      data: results
     });
   } catch (err) {
     res.status(500).json({

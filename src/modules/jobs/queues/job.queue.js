@@ -28,7 +28,11 @@ export const enqueueJobEmbedding = async (job) => {
       metadata: {
         jobId: job._id.toString(),
         companyId: job.company?._id?.toString() || job.company?.toString(),
-        type: "job"
+        type: "job",
+        status: job.status || "open",
+        location: job.location || "",
+        employmentType: job.employmentType || "",
+        experienceLevel: job.experienceLevel || ""
       },
       namespace: "jobs"
     }
