@@ -8,6 +8,8 @@ import { createError } from "../../utils/error.js";
 class ProfileService {
   /**
    * Ensure user is a candidate
+   * @param {string} userId
+   * @returns {Promise<Object>}
    */
   async ensureCandidateUser(userId) {
     const user = await User.findById(userId);
@@ -27,6 +29,8 @@ class ProfileService {
 
   /**
    * Get candidate profile with user full name
+   * @param {string} userId
+   * @returns {Promise<Object>}
    */
   async getProfile(userId) {
     const user = await this.ensureCandidateUser(userId);
@@ -44,6 +48,9 @@ class ProfileService {
 
   /**
    * Calculate profile completion percentage
+   * @param {Object} user
+   * @param {Object} profile
+   * @returns {number}
    */
   calculateProfileCompletion(user, profile) {
     let completion = 0;
@@ -68,6 +75,9 @@ class ProfileService {
 
   /**
    * Update candidate profile
+   * @param {string} userId
+   * @param {Object} profileData
+   * @returns {Promise<Object>}
    */
   async updateProfile(userId, profileData) {
     const user = await this.ensureCandidateUser(userId);
@@ -129,6 +139,9 @@ class ProfileService {
 
   /**
    * Upload CV/Resume to Cloudinary
+   * @param {string} userId
+   * @param {Object} file
+   * @returns {Promise<Object>}
    */
   async uploadCV(userId, file) {
     const user = await this.ensureCandidateUser(userId);
@@ -173,6 +186,8 @@ class ProfileService {
 
   /**
    * Recalculate profile completion after async CV parsing completes.
+   * @param {string} profileId
+   * @returns {Promise<Object>}
    */
   async syncProfileCompletion(profileId) {
     const profile = await CandidateProfile.findById(profileId);
@@ -187,6 +202,9 @@ class ProfileService {
   }
   /**
    * Upload avatar image to Cloudinary and save to profile.
+   * @param {string} userId
+   * @param {Object} file
+   * @returns {Promise<Object>}
    */
   async uploadAvatar(userId, file) {
     const user = await this.ensureCandidateUser(userId);
@@ -220,6 +238,9 @@ class ProfileService {
 
   /**
    * Save a job for a candidate
+   * @param {string} userId
+   * @param {string} jobId
+   * @returns {Promise<Array>}
    */
   async saveJob(userId, jobId) {
     await this.ensureCandidateUser(userId);
@@ -235,6 +256,9 @@ class ProfileService {
 
   /**
    * Unsave a job for a candidate
+   * @param {string} userId
+   * @param {string} jobId
+   * @returns {Promise<Array>}
    */
   async unsaveJob(userId, jobId) {
     await this.ensureCandidateUser(userId);
@@ -248,6 +272,8 @@ class ProfileService {
 
   /**
    * Get saved jobs for a candidate
+   * @param {string} userId
+   * @returns {Promise<Array>}
    */
   async getSavedJobs(userId) {
     await this.ensureCandidateUser(userId);
@@ -257,6 +283,151 @@ class ProfileService {
     });
     if (!profile) return [];
     return profile.savedJobs;
+  }
+
+  /**
+   * Get public profile by candidateId and record a view if viewer is different
+   * @param {string} candidateId
+   * @param {string} viewerId
+   * @returns {Promise<Object>}
+   */
+  async getProfileById(candidateId, viewerId) {
+    const user = await User.findById(candidateId);
+    if (!user || user.role !== "candidate") {
+      throw createError(404, "Candidate not found.");
+    }
+
+    let profile = await CandidateProfile.findOne({ userId: candidateId });
+    if (!profile) {
+      profile = await CandidateProfile.create({ userId: candidateId });
+    }
+
+    if (viewerId && viewerId.toString() !== candidateId.toString()) {
+      const oneMonthAgo = new Date();
+      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+      
+      profile.views = (profile.views || []).filter(v => v.viewedAt >= oneMonthAgo);
+      profile.views.push({
+        viewerId,
+        viewedAt: new Date()
+      });
+      await profile.save();
+    }
+
+    return {
+      ...profile.toObject(),
+      fullName: user.fullName ?? null,
+    };
+  }
+
+  /**
+   * Record a view manually
+   * @param {string} candidateId
+   * @param {string} viewerId
+   * @returns {Promise<void>}
+   */
+  async recordView(candidateId, viewerId) {
+    if (viewerId && viewerId.toString() === candidateId.toString()) {
+      return;
+    }
+    const profile = await CandidateProfile.findOne({ userId: candidateId });
+    if (!profile) return;
+
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+    profile.views = (profile.views || []).filter(v => v.viewedAt >= oneMonthAgo);
+
+    profile.views.push({
+      viewerId,
+      viewedAt: new Date()
+    });
+    await profile.save();
+  }
+
+  /**
+   * Get Candidate Dashboard Statistics
+   * @param {string} userId
+   * @returns {Promise<Object>}
+   */
+  async getDashboardStats(userId) {
+    const profile = await CandidateProfile.findOne({ userId });
+    
+    let profileViewsCount = 0;
+    let viewsChange = "+0%";
+    let viewsTrend = "up";
+
+    if (profile) {
+      const now = new Date();
+      const oneMonthAgo = new Date();
+      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+      const twoWeeksAgo = new Date();
+      twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+
+      // Keep only last month's views
+      const activeViews = (profile.views || []).filter(v => v.viewedAt >= oneMonthAgo);
+      profileViewsCount = activeViews.length;
+
+      // Calculate this week vs last week views
+      const thisWeekViews = activeViews.filter(v => v.viewedAt >= oneWeekAgo).length;
+      const lastWeekViews = activeViews.filter(v => v.viewedAt >= twoWeeksAgo && v.viewedAt < oneWeekAgo).length;
+
+      if (lastWeekViews === 0) {
+        viewsChange = thisWeekViews > 0 ? `+${thisWeekViews}` : "0";
+        viewsTrend = "up";
+      } else {
+        const diff = thisWeekViews - lastWeekViews;
+        const pct = Math.round((diff / lastWeekViews) * 100);
+        viewsChange = pct >= 0 ? `+${pct}%` : `${pct}%`;
+        viewsTrend = pct >= 0 ? "up" : "down";
+      }
+    }
+
+    // Import Application dynamically to avoid circular references
+    const Application = (await import("../applications/application.model.js")).default;
+    const totalApps = await Application.countDocuments({ candidateId: userId });
+    
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+    const twoWeeksAgo = new Date();
+    twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+
+    const thisWeekApps = await Application.countDocuments({
+      candidateId: userId,
+      createdAt: { $gte: oneWeekAgo }
+    });
+    const lastWeekApps = await Application.countDocuments({
+      candidateId: userId,
+      createdAt: { $gte: twoWeeksAgo, $lt: oneWeekAgo }
+    });
+
+    const appsChange = thisWeekApps >= lastWeekApps 
+      ? `+${thisWeekApps - lastWeekApps}` 
+      : `-${lastWeekApps - thisWeekApps}`;
+    const appsTrend = thisWeekApps >= lastWeekApps ? "up" : "down";
+
+    // Get avg match score
+    const completedScreenings = await Application.find({
+      candidateId: userId,
+      "aiScreening.status": "completed",
+      "aiScreening.overallScore": { $exists: true, $ne: null }
+    }).select("aiScreening.overallScore");
+
+    let avgScore = 0;
+    if (completedScreenings.length > 0) {
+      const totalScore = completedScreenings.reduce((sum, app) => sum + app.aiScreening.overallScore, 0);
+      avgScore = Math.round(totalScore / completedScreenings.length);
+    }
+
+    return {
+      profileViews: { value: profileViewsCount.toString(), change: viewsChange, trend: viewsTrend },
+      applications: { value: totalApps.toString(), change: appsChange, trend: appsTrend },
+      avgMatchScore: { value: avgScore > 0 ? `${avgScore}%` : "0%", change: "+0%", trend: "up" }
+    };
   }
 }
 

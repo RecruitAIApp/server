@@ -94,6 +94,55 @@ class ProfileController {
       return res.status(err.status || 400).json({ success: false, message: err.message || "Failed to retrieve saved jobs." });
     }
   }
+
+  async getDashboardStats(req, res) {
+    try {
+      const result = await profileService.getDashboardStats(req.user.id);
+      return res.status(200).json({
+        success: true,
+        data: result
+      });
+    } catch (err) {
+      return res.status(err.status || 500).json({
+        success: false,
+        message: err.message || "Failed to retrieve dashboard stats.",
+      });
+    }
+  }
+
+  async getProfileById(req, res) {
+    try {
+      const { candidateId } = req.params;
+      const viewerId = req.user?.id;
+      const result = await profileService.getProfileById(candidateId, viewerId);
+      return res.status(200).json({
+        success: true,
+        profile: result,
+      });
+    } catch (err) {
+      return res.status(err.status || 500).json({
+        success: false,
+        message: err.message || "Failed to retrieve candidate profile.",
+      });
+    }
+  }
+
+  async recordView(req, res) {
+    try {
+      const { candidateId } = req.params;
+      const viewerId = req.user?.id;
+      await profileService.recordView(candidateId, viewerId);
+      return res.status(200).json({
+        success: true,
+        message: "Profile view recorded successfully."
+      });
+    } catch (err) {
+      return res.status(err.status || 500).json({
+        success: false,
+        message: err.message || "Failed to record profile view."
+      });
+    }
+  }
 }
 
 const profileController = new ProfileController();

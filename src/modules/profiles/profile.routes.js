@@ -5,8 +5,18 @@ import {
   allowRoles,
 } from "../../common/middlewares/auth.middleware.js";
 import { cvPdfUpload, avatarUpload } from "../../config/multer.config.js";
+import { validate } from "../../common/middlewares/validation.middleware.js";
+import { updateProfileSchema } from "./profile.validation.js";
 
 const router = express.Router();
+
+// GET /api/profiles/stats
+router.get(
+  "/stats",
+  authenticate,
+  allowRoles("candidate"),
+  profileController.getDashboardStats,
+);
 
 // GET /api/profiles/me
 router.get(
@@ -16,11 +26,14 @@ router.get(
   profileController.getProfile,
 );
 
+
+
 // PUT /api/profiles/me
 router.put(
   "/me",
   authenticate,
   allowRoles("candidate"),
+  validate(updateProfileSchema),
   profileController.updateProfile,
 );
 
@@ -64,6 +77,20 @@ router.delete(
   authenticate,
   allowRoles("candidate"),
   profileController.unsaveJob,
+);
+
+// GET /api/profiles/:candidateId
+router.get(
+  "/:candidateId",
+  authenticate,
+  profileController.getProfileById,
+);
+
+// POST /api/profiles/:candidateId/view
+router.post(
+  "/:candidateId/view",
+  authenticate,
+  profileController.recordView,
 );
 
 export default router;

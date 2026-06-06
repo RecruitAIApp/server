@@ -117,6 +117,20 @@ const candidateProfileSchema = new mongoose.Schema(
         ref: "Job",
       },
     ],
+
+    views: [
+      {
+        viewerId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          required: true,
+        },
+        viewedAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
   },
   {
     timestamps: true,
