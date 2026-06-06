@@ -7,6 +7,7 @@ import User from "../modules/auth/user.model.js";
 import Company from "../modules/company/company.model.js";
 import Job from "../modules/jobs/job.model.js";
 import authService from "../modules/auth/auth.service.js";
+import notificationService from "../modules/notifications/notification.service.js";
 
 const router = express.Router();
 
@@ -174,6 +175,58 @@ router.post("/setup-chat-test", async (req, res) => {
     });
   } catch (err) {
     console.error("Test setup error:", err);
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+});
+
+/**
+ * Setup test for Notifications
+ * Creates a user (if not exists) and sends a test notification
+ */
+router.post("/setup-notification-test", async (req, res) => {
+  try {
+    // 1. Create/Get a user
+    let user = await User.findOne({ email: "testnotification@example.com" });
+    if (!user) {
+      user = await User.create({
+        email: "testnotification@example.com",
+        password: "password123",
+        fullName: "Notification Tester",
+        role: "candidate",
+        status: "active",
+        isActive: true,
+      });
+    }
+
+    // 2. Generate tokens
+    const { accessToken } = await authService.generateTokens(user);
+
+    // 3. Send a test notification using the service (will trigger real-time push if socket is connected)
+    const notification = await notificationService.notify(user._id, {
+      type: "system",
+      title: "Welcome to Notifications!",
+      message: "This is your first test notification. Real-time is working if you see this!",
+      data: { source: "test-setup", time: new Date() }
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        token: accessToken,
+        userId: user._id,
+        notification,
+        instructions: {
+          step1: "Use the provided 'token' as Bearer token in Postman",
+          step2: "GET /api/v1/notifications to see the list",
+          step3: "PATCH /api/v1/notifications/:id/read to mark as read",
+          step4: "DELETE /api/v1/notifications/:id to remove it"
+        }
+      },
+    });
+  } catch (err) {
     res.status(500).json({
       success: false,
       message: err.message,

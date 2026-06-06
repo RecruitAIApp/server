@@ -4,12 +4,15 @@ import { connectDB } from './src/config/db.config.js';
 import { redisConnection } from './src/config/redis.config.js';
 import dotenv from 'dotenv';
 
+import { initSocket } from './src/config/socket.config.js';
+
 dotenv.config();
 
 const PORT = process.env.PORT || 5001;
 
 
 const server = http.createServer(app);
+initSocket(server);
 
 const startServer = async () => {
   try {
