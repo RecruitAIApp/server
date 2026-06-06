@@ -14,7 +14,8 @@
     "worker:automation:dev": "node --watch src/workers/automation.worker.js",
     "redis": "docker run -d --name redis-stack -p 6380:6379 -p 8001:8001 redis/redis-stack",
     "docker": "docker start redis-stack",
-    "seed": "node src/seed.js",
+    "seed": "node src/seed/index.js",
+    "test": "node --test --test-concurrency=1 src/tests/**/*.test.js",
     "dev:all": "concurrently \"npm run dev\" \"npm run worker:dev\" \"npm run worker:cv:dev\" \"npm run worker:automation:dev\""
   },
   "dependencies": {

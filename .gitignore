@@ -51,3 +51,10 @@ coverage
 .DS_Store
 Thumbs.db
 skills-lock.json
+
+# Exclude testing, mock and seed files
+src/tests/
+src/seed/
+src/seed.js
+mocks/
+src/mocks/
