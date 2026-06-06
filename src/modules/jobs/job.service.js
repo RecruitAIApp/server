@@ -6,6 +6,7 @@ import {
   buildPaginationOptions,
   buildPaginatedResponse,
 } from "../../common/helpers/queryBuilder.helper.js";
+import { enqueueJobEmbedding, enqueueJobDelete } from "./queues/job.queue.js";
 
 export const createJobService = async (data, userId) => {
   const company = await Company.findById(data.company);
@@ -35,6 +36,17 @@ export const createJobService = async (data, userId) => {
   }
 
   const job = await Job.create({ ...data, postedBy: userId });
+
+  // Enqueue embedding task
+  try {
+    // Populate company info for better context in embedding
+    const populatedJob = await Job.findById(job._id).populate("company", "name industry description");
+    await enqueueJobEmbedding(populatedJob);
+    console.log(`[JobService] Job ${job._id} enqueued for embedding`);
+  } catch (error) {
+    console.error(`[JobService] Failed to enqueue job embedding: ${error.message}`);
+  }
+
   return job;
 };
 
@@ -133,12 +145,21 @@ export const updateJobService = async (id, data) => {
     id,
     { $set: data },
     { new: true, runValidators: true },
-  ).populate("company", "name logo industry");
+  ).populate("company", "name logo industry description");
 
   if (!job) {
     const error = new Error("Job not found");
     error.statusCode = 404;
     throw error;
+  }
+
+  // Update embedding task: Delete old one first to avoid duplicates
+  try {
+    await enqueueJobDelete(id);
+    await enqueueJobEmbedding(job);
+    console.log(`[JobService] Job ${job._id} re-enqueued for embedding update`);
+  } catch (error) {
+    console.error(`[JobService] Failed to re-enqueue job embedding: ${error.message}`);
   }
 
   return job;
@@ -151,5 +172,14 @@ export const deleteJobService = async (id) => {
     error.statusCode = 404;
     throw error;
   }
+
+  // Cleanup embedding task
+  try {
+    await enqueueJobDelete(job._id);
+    console.log(`[JobService] Job ${job._id} enqueued for embedding deletion`);
+  } catch (error) {
+    console.error(`[JobService] Failed to enqueue job embedding deletion: ${error.message}`);
+  }
+
   return job;
 };
