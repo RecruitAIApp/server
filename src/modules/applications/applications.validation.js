@@ -37,8 +37,8 @@ export const updateStageSchema = Joi.object({
   }),
   body: Joi.object({
     stage: Joi.object({
-      key: Joi.string().valid('applied', 'screening', 'interview', 'offered', 'rejected').required().messages({
-        'any.only': 'Stage must be one of: applied, screening, interview, offered, rejected'
+      key: Joi.string().valid('applied', 'shortlisted', 'interview', 'offer', 'hired', 'rejected').required().messages({
+        'any.only': 'Stage must be one of: applied, shortlisted, interview, offer, hired, rejected'
       })
     }).required(),
     notes: Joi.string().max(500).optional().messages({
@@ -57,12 +57,11 @@ export const addNoteSchema = Joi.object({
     }),
   }),
   body: Joi.object({
-    authorId: Joi.string().regex(objectIdRegex).required(),
     content: Joi.string().min(1).max(1000).required().messages({
       'string.empty': 'Note content cannot be empty'
     }),
     ratingScore: Joi.number().min(1).max(5).optional()
-  })
+  }).required()
 });
 
 export const applicationIdSchema = Joi.object({
