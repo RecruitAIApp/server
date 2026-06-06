@@ -4,7 +4,7 @@ import * as screeningQueue from './screening.queue.js';
 import * as timelineHelper from './timeline.helper.js';
 import { AppError } from '../../utils/error.js';
 import EmployerProfile from '../auth/employerProfile.model.js';
-
+import CandidateProfile from '../auth/candidateProfile.model.js';
 /**
  * This is the main logic for applying to a job.
  * @param {*} applicationData 
@@ -21,6 +21,51 @@ export const applyToJob = async (applicationData) => {
   );
 
   const newApplication = await applicationRepo.create(applicationData, initialTimelineEntry);
+
+  try {
+    await screeningQueue.enqueue(newApplication);
+  } catch (error) {
+    console.error("⚠️ Failed to enqueue AI screening, marking status as failed:", error.message);
+    await applicationRepo.updateScreeningStatus(newApplication._id, 'failed');
+    newApplication.aiScreening.status = 'failed';
+  }
+
+  return newApplication;
+};
+
+/**
+ * Handles quick applying using the candidate's existing resume.
+ * @param {string} jobId 
+ * @param {string} candidateId 
+ * @returns 
+ */
+export const quickApply = async (jobId, candidateId) => {
+  const profile = await CandidateProfile.findOne({ userId: candidateId });
+  if (!profile || !profile.resume || !profile.resume.url || !profile.resume.publicId || !profile.resume.fileName) {
+    throw new AppError("Please upload a resume before using Quick Apply", 400);
+  }
+
+  const job = await jobRepo.assertJobIsOpen(jobId);
+  const companyId = job.company || job.companyId;
+
+  await applicationRepo.assertNoDuplicate({ jobId, candidateId });
+
+  const initialTimelineEntry = timelineHelper.buildStatusChangedTimelineEntry(
+    candidateId,
+    null,
+    'applied'
+  );
+
+  const newApplication = await applicationRepo.create({
+    candidateId,
+    companyId,
+    jobId,
+    appliedResume: {
+      url: profile.resume.url,
+      publicId: profile.resume.publicId,
+      fileName: profile.resume.fileName
+    }
+  }, initialTimelineEntry);
 
   try {
     await screeningQueue.enqueue(newApplication);

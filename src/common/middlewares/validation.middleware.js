@@ -1,5 +1,7 @@
 export const validate = (schema) => async (req, res, next) => {
   try {
+    console.log("req.body before validation:", req.body);
+    console.log("req.file before validation:", req.file ? req.file.originalname : "none");
     const value = await schema.validateAsync(
       {
         body: req.body,
@@ -24,6 +26,7 @@ export const validate = (schema) => async (req, res, next) => {
 
     next();
   } catch (error) {
+    console.error("Validation Error:", JSON.stringify(error.details, null, 2));
     return res.status(400).json({
       success: false,
       message: "Validation Error",
