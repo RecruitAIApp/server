@@ -8,6 +8,8 @@ import Company from "../modules/company/company.model.js";
 import Job from "../modules/jobs/job.model.js";
 import authService from "../modules/auth/auth.service.js";
 import notificationService from "../modules/notifications/notification.service.js";
+import { enqueueJobEmbedding } from "../modules/jobs/queues/job.queue.js";
+import { updateJobService, deleteJobService } from "../modules/jobs/job.service.js";
 
 const router = express.Router();
 
@@ -225,6 +227,191 @@ router.post("/setup-notification-test", async (req, res) => {
           step4: "DELETE /api/v1/notifications/:id to remove it"
         }
       },
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+});
+
+/**
+ * Setup test for Job Embedding
+ * Manually enqueues a job for embedding
+ */
+router.post("/setup-embedding-test", async (req, res) => {
+  try {
+    // 1. Get or Create Employer/Company
+    let employer = await User.findOne({ email: "employer@test.com" });
+    if (!employer) {
+      employer = await User.create({
+        email: "employer@test.com",
+        password: "password123",
+        fullName: "Test Employer",
+        role: "employer",
+        status: "active",
+        isActive: true,
+      });
+    }
+
+    let company = await Company.findOne({ name: "Test Tech Corp" });
+    if (!company) {
+      company = await Company.create({
+        name: "Test Tech Corp",
+        description: "A testing tech company specializing in AI and Node.js solutions.",
+        industry: "Technology",
+        owner: employer._id,
+        status: "active",
+      });
+    }
+
+    // 2. Create a unique test job
+    const uniqueTitle = `Embedded Engineer ${Date.now()}`;
+    const jobData = {
+      title: uniqueTitle,
+      description: "We context-aware AI engineer to help integrate vector stores into our recruitment platform.",
+      requirements: ["Node.js", "Pinecone", "Embeddings", "BullMQ"],
+      salaryRange: { min: 100000, max: 150000, currency: "USD" },
+      location: "Remote",
+      jobType: "remote",
+      employmentType: "full-time",
+      experienceLevel: "senior",
+      skills: ["Node.js", "AI", "Vector DB"],
+      company: company._id,
+      postedBy: employer._id,
+      status: "open",
+    };
+
+    const job = await Job.create(jobData);
+    
+    // 3. Manually enqueue (though the service now does this, we do it here to verify the queue specifically)
+    // We populate first like the service does
+    const populatedJob = await Job.findById(job._id).populate("company", "name industry description");
+    await enqueueJobEmbedding(populatedJob);
+
+    res.status(200).json({
+      success: true,
+      message: "Job created and enqueued for embedding. Check background worker logs.",
+      data: {
+        jobId: job._id,
+        title: job.title
+      }
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+});
+
+/**
+ * Test Job Embedding Update
+ */
+router.patch("/test-embedding-update/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updateData = {
+      title: `Updated Title ${Date.now()}`,
+      description: "Updated description to test if embedding is refreshed and old one deleted."
+    };
+    
+    const job = await updateJobService(id, updateData);
+    
+    res.status(200).json({
+      success: true,
+      message: "Job updated. You should see a DELETE then an EMBED task in the worker logs.",
+      data: job
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+});
+
+/**
+ * Test Job Embedding Delete
+ */
+router.delete("/test-embedding-delete/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    await deleteJobService(id);
+    
+    res.status(200).json({
+      success: true,
+      message: "Job deleted. You should see a DELETE task in the worker logs."
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+});
+
+/**
+ * Test Job Embedding Full Flow (Create + Update)
+ * One click to see create, then delete+re-embed logs.
+ */
+router.post("/test-full-update-flow", async (req, res) => {
+  try {
+    // 1. Setup Employer/Company
+    let employer = await User.findOne({ email: "employer@test.com" });
+    if (!employer) {
+      employer = await User.create({
+        email: "employer@test.com",
+        password: "password123",
+        fullName: "Test Employer",
+        role: "employer",
+        status: "active",
+        isActive: true,
+      });
+    }
+
+    let company = await Company.findOne({ name: "Test Tech Corp" });
+    if (!company) {
+      company = await Company.create({
+        name: "Test Tech Corp",
+        description: "Testing Corp",
+        industry: "Tech",
+        owner: employer._id,
+        status: "active",
+      });
+    }
+
+    // 2. Initial Create
+    const job = await Job.create({
+      title: `Flow Test ${Date.now()}`,
+      description: "Initial description",
+      requirements: ["Test"],
+      salaryRange: { min: 10, max: 20, currency: "USD" },
+      location: "Remote",
+      jobType: "remote",
+      employmentType: "full-time",
+      company: company._id,
+      postedBy: employer._id,
+    });
+    
+    // Trigger initial embed (as createJobService would)
+    const populated = await Job.findById(job._id).populate("company", "name industry description");
+    await enqueueJobEmbedding(populated);
+
+    // 3. Immediate Update to trigger Delete + Re-embed
+    const updatedJob = await updateJobService(job._id, {
+      title: `${job.title} (Updated)`,
+      description: "This update should trigger a DELETE then a NEW EMBED task."
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Full flow triggered. Check worker logs for: 1. EMBED, 2. DELETE, 3. EMBED.",
+      data: {
+        jobId: job._id,
+        finalTitle: updatedJob.title
+      }
     });
   } catch (err) {
     res.status(500).json({

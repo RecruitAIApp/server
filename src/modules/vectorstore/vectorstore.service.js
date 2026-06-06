@@ -73,5 +73,20 @@ export const VectorStoreService = {
       console.error("[VectorStoreService] Error in retrieve:", error.message);
       throw error;
     }
+  },
+
+  async deleteByFilter(namespace = "default", filter = {}) {
+    try {
+      if (Object.keys(filter).length === 0) {
+        throw new Error("Filter is required to delete vectors safely.");
+      }
+
+      await index.namespace(namespace).deleteMany(filter);
+      
+      return { success: true };
+    } catch (error) {
+      console.error("[VectorStoreService] Error in deleteByFilter:", error.message);
+      throw error;
+    }
   }
 };
