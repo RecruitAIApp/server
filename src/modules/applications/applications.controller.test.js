@@ -4,6 +4,10 @@ import {
   updateApplicationStageController,
   getApplicationsByJobController,
   retryScreeningController,
+  getApplicationDetailsController,
+  getJobKanbanController,
+  addApplicationNoteController,
+  getCandidateApplicationsController,
 } from './applications.controller.js';
 import * as applicationService from './applications.service.js';
 import { sendResponse } from '../../utils/responseHandler.js';
@@ -236,6 +240,174 @@ describe('Applications Controller', () => {
       expect(mockRes.json).toHaveBeenCalledWith({
         success: false,
         message: 'Forbidden',
+      });
+    });
+  });
+
+  describe('getApplicationDetailsController', () => {
+    it('should successfully get application details and return 200', async () => {
+      mockReq = {
+        params: { applicationId: 'app123' },
+        user: { id: 'user789', role: 'candidate' },
+      };
+      const applicationDetails = { _id: 'app123', candidateId: 'user789', companyId: 'comp999' };
+
+      vi.mocked(applicationService.getApplicationDetails).mockResolvedValue(applicationDetails);
+
+      await getApplicationDetailsController(mockReq, mockRes);
+
+      expect(applicationService.getApplicationDetails).toHaveBeenCalledWith('app123', mockReq.user);
+      expect(sendResponse).toHaveBeenCalledWith(
+        mockRes,
+        200,
+        true,
+        'Application details fetched successfully',
+        applicationDetails
+      );
+    });
+
+    it('should handle errors when getting application details', async () => {
+      mockReq = {
+        params: { applicationId: 'app123' },
+        user: { id: 'user789', role: 'candidate' },
+      };
+      const error = new Error('Forbidden');
+      error.statusCode = 403;
+
+      vi.mocked(applicationService.getApplicationDetails).mockRejectedValue(error);
+
+      await getApplicationDetailsController(mockReq, mockRes);
+
+      expect(mockRes.status).toHaveBeenCalledWith(403);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        success: false,
+        message: 'Forbidden',
+      });
+    });
+  });
+
+  describe('getJobKanbanController', () => {
+    it('should successfully fetch job Kanban and return 200', async () => {
+      mockReq = {
+        params: { id: 'job123' },
+        job: { company: 'company456' },
+      };
+      const kanbanData = { applied: [], shortlisted: [] };
+
+      vi.mocked(applicationService.getJobKanban).mockResolvedValue(kanbanData);
+
+      await getJobKanbanController(mockReq, mockRes);
+
+      expect(applicationService.getJobKanban).toHaveBeenCalledWith('job123', 'company456');
+      expect(sendResponse).toHaveBeenCalledWith(
+        mockRes,
+        200,
+        true,
+        'Job Kanban fetched successfully',
+        kanbanData
+      );
+    });
+
+    it('should handle errors when fetching job Kanban', async () => {
+      mockReq = {
+        params: { id: 'job123' },
+        job: { company: 'company456' },
+      };
+      const error = new Error('Job not found');
+      error.statusCode = 404;
+
+      vi.mocked(applicationService.getJobKanban).mockRejectedValue(error);
+
+      await getJobKanbanController(mockReq, mockRes);
+
+      expect(mockRes.status).toHaveBeenCalledWith(404);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        success: false,
+        message: 'Job not found',
+      });
+    });
+  });
+
+  describe('addApplicationNoteController', () => {
+    it('should successfully add note/rating and return 200', async () => {
+      mockReq = {
+        params: { id: 'app123' },
+        body: { content: 'Excellent candidate', ratingScore: 5 },
+        user: { id: 'recruiter789' },
+      };
+      const updatedApplication = { _id: 'app123', notes: [{ content: 'Excellent candidate' }] };
+
+      vi.mocked(applicationService.addApplicationNote).mockResolvedValue(updatedApplication);
+
+      await addApplicationNoteController(mockReq, mockRes);
+
+      expect(applicationService.addApplicationNote).toHaveBeenCalledWith('app123', mockReq.body, mockReq.user);
+      expect(sendResponse).toHaveBeenCalledWith(
+        mockRes,
+        200,
+        true,
+        'Note added successfully',
+        updatedApplication
+      );
+    });
+
+    it('should handle errors when adding note/rating', async () => {
+      mockReq = {
+        params: { id: 'app123' },
+        body: { content: 'Excellent candidate', ratingScore: 5 },
+        user: { id: 'recruiter789' },
+      };
+      const error = new Error('Forbidden');
+      error.statusCode = 403;
+
+      vi.mocked(applicationService.addApplicationNote).mockRejectedValue(error);
+
+      await addApplicationNoteController(mockReq, mockRes);
+
+      expect(mockRes.status).toHaveBeenCalledWith(403);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        success: false,
+        message: 'Forbidden',
+      });
+    });
+  });
+
+  describe('getCandidateApplicationsController', () => {
+    it('should successfully fetch candidate applications and return 200', async () => {
+      mockReq = {
+        user: { id: 'candidate123' },
+      };
+      const applicationsList = [{ _id: 'app1' }, { _id: 'app2' }];
+
+      vi.mocked(applicationService.getCandidateApplications).mockResolvedValue(applicationsList);
+
+      await getCandidateApplicationsController(mockReq, mockRes);
+
+      expect(applicationService.getCandidateApplications).toHaveBeenCalledWith('candidate123');
+      expect(sendResponse).toHaveBeenCalledWith(
+        mockRes,
+        200,
+        true,
+        'My applications fetched successfully',
+        applicationsList
+      );
+    });
+
+    it('should handle errors when fetching candidate applications', async () => {
+      mockReq = {
+        user: { id: 'candidate123' },
+      };
+      const error = new Error('Database error');
+      error.statusCode = 500;
+
+      vi.mocked(applicationService.getCandidateApplications).mockRejectedValue(error);
+
+      await getCandidateApplicationsController(mockReq, mockRes);
+
+      expect(mockRes.status).toHaveBeenCalledWith(500);
+      expect(mockRes.json).toHaveBeenCalledWith({
+        success: false,
+        message: 'Database error',
       });
     });
   });

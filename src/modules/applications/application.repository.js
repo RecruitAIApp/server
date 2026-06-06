@@ -117,4 +117,103 @@ export const updateScreeningStatus = async (applicationId, status) => {
   );
 };
 
+/**
+ * Fetches applications for a job, populating candidate info, and returns grouped by stage key.
+ */
+export const getKanbanByJob = async (jobId, companyId) => {
+  const applications = await Application.find({ jobId, companyId })
+    .populate({ path: "candidateId", select: "name email profile.cvUrl" })
+    .sort({ createdAt: -1 })
+    .lean();
 
+  const stages = {
+    applied: [],
+    shortlisted: [],
+    interview: [],
+    offer: [],
+    hired: [],
+    rejected: []
+  };
+
+  applications.forEach(app => {
+    const stageKey = app.stage?.key || 'applied';
+    if (stages[stageKey]) {
+      stages[stageKey].push(app);
+    } else {
+      // In case of any custom stage keys
+      if (!stages[stageKey]) {
+        stages[stageKey] = [];
+      }
+      stages[stageKey].push(app);
+    }
+  });
+
+  return stages;
+};
+
+/**
+ * Adds a note and/or rating vote to an application.
+ */
+export const addNoteAndRating = async (applicationId, actorId, noteContent, ratingScore) => {
+  const application = await Application.findById(applicationId);
+  if (!application) {
+    throw new AppError("Application not found", 404);
+  }
+
+  // 1. Add Note if provided
+  if (noteContent && noteContent.trim() !== "") {
+    application.notes.push({
+      authorId: actorId,
+      content: noteContent,
+      createdAt: new Date()
+    });
+  }
+
+  // 2. Add or Update rating vote if provided
+  if (typeof ratingScore === "number") {
+    if (!application.internalRating) {
+      application.internalRating = { average: 0, votes: [] };
+    }
+
+    const existingVoteIndex = application.internalRating.votes.findIndex(
+      (v) => v.recruiterId.toString() === actorId.toString()
+    );
+
+    if (existingVoteIndex > -1) {
+      application.internalRating.votes[existingVoteIndex].score = ratingScore;
+    } else {
+      application.internalRating.votes.push({
+        recruiterId: actorId,
+        score: ratingScore
+      });
+    }
+
+    // Recalculate average
+    const totalVotes = application.internalRating.votes.length;
+    const sumVotes = application.internalRating.votes.reduce((sum, v) => sum + v.score, 0);
+    application.internalRating.average = totalVotes > 0 ? sumVotes / totalVotes : 0;
+  }
+
+  return await application.save();
+};
+
+/**
+ * Finds all applications submitted by a specific candidate.
+ */
+export const findCandidateApplications = async (candidateId) => {
+  return await Application.find({ candidateId })
+    .populate({ path: "jobId", select: "title location jobType employmentType" })
+    .populate({ path: "companyId", select: "name logo website" })
+    .sort({ createdAt: -1 })
+    .lean();
+};
+
+/**
+ * Finds an application by ID with fully populated candidate, job, and company info.
+ */
+export const findDetailsById = async (applicationId) => {
+  return await Application.findById(applicationId)
+    .populate({ path: "candidateId", select: "name email profile" })
+    .populate({ path: "jobId", select: "title location jobType employmentType" })
+    .populate({ path: "companyId", select: "name logo website" });
+};

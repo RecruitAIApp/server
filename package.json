@@ -38,5 +38,8 @@
     "nodemailer": "^8.0.8",
     "socket.io": "^4.8.3",
     "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.8"
   }
 }
