@@ -17,6 +17,8 @@ import { handleScreening } from "../../workers/handlers/screening.handler.js";
 import { LLMClient } from "../../modules/llm/LLMProvider.js";
 import { aiAutomationQueue, trackingQueue, feedbackQueue } from "../../config/queues.js";
 import { redisConnection } from "../../config/redis.config.js";
+import { QueueService } from "../../common/services/queue.service.js";
+import { cvParseHandler } from "../../workers/handlers/cv-parse.handler.js";
 
 describe("AI Screening Integration Tests", () => {
   let validJob;
@@ -159,5 +161,43 @@ describe("AI Screening Integration Tests", () => {
     assert.strictEqual(attempts, 3);
     const result = await Application.findById(application._id);
     assert.strictEqual(result.aiScreening.status, "failed");
+  });
+
+  it("Test 13: Successful CV Extraction -> CV Embedding Job is Queued -> verified", async () => {
+    const { user, profile } = await createTestCandidate(true);
+    const application = await createApplication(validJob._id, user._id, validJob.company);
+
+    // 1. Mock fetchPDFText to return text
+    mock.method(cvParseHandler, "fetchPDFText", async () => "Simulated extracted CV text for embedding.");
+    
+    // 2. Mock QueueService.addJob to track calls
+    const addJobMock = mock.method(QueueService, "addJob", async () => ({ id: "mock-job-id" }));
+
+    // 3. Mock LLM to return valid JSON
+    mock.method(LLMClient.prototype, "send", async () => {
+      return {
+        content: JSON.stringify({
+          confidence: 95,
+          scoreBreakdown: { skills: 95, experience: 90, education: 95, cultureFit: 90 },
+          matchedSkills: ["Node.js"],
+          missingSkills: [],
+          summary: "Excellent candidate",
+          redFlags: []
+        }),
+      };
+    });
+
+    await handleScreening({ applicationId: application._id });
+
+    // 4. Assert the queueing happened correctly
+    assert.strictEqual(addJobMock.mock.callCount(), 1);
+    const [queueName, jobName, jobData] = addJobMock.mock.calls[0].arguments;
+    
+    assert.strictEqual(queueName, "background-tasks");
+    assert.strictEqual(jobName, "EMBED_RESUME");
+    assert.strictEqual(jobData.type, "EMBED_RESUME");
+    assert.strictEqual(jobData.data.metadata.candidateId, user._id.toString());
+    assert.strictEqual(jobData.data.metadata.jobId, validJob._id.toString());
+    assert.strictEqual(jobData.data.metadata.profileId, profile._id.toString());
   });
 });
