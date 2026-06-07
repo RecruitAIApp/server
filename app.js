@@ -12,6 +12,7 @@ import employerRouter from "./src/modules/employer/employer.routes.js";
 import jobChatRouter from "./src/modules/job-chat/chat.routes.js";
 import notificationRouter from "./src/modules/notifications/notification.routes.js";
 import testRouter from "./src/routes/test.routes.js";
+import adminRouter from "./src/modules/admin/admin.routes.js";
 
 dotenv.config();
 const app = express();
@@ -52,6 +53,9 @@ app.use("/api/v1/job-chat", jobChatRouter);
 // Notification routes
 app.use("/api/v1/notifications", notificationRouter);
 
+// Admin routes
+app.use("/api/admin", adminRouter);
+
 // Test routes (for development/testing)
 app.use("/api/test", testRouter);
 
@@ -70,5 +74,4 @@ app.use((err, req, res, next) => {
     error: process.env.NODE_ENV === "development" ? err.message : {},
   });
 });
-
 export default app;
