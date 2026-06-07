@@ -12,6 +12,7 @@ import employerRouter from "./src/modules/employer/employer.routes.js";
 import jobChatRouter from "./src/modules/job-chat/chat.routes.js";
 import notificationRouter from "./src/modules/notifications/notification.routes.js";
 import testRouter from "./src/routes/test.routes.js";
+import adminRouter from "./src/modules/admin/admin.routes.js";
 import recommendationRouter from "./src/modules/recommendations/recommendation.routes.js";
 import hrChatRouter from "./src/modules/application-chat/application-chat.routes.js";
 
@@ -57,6 +58,8 @@ app.use("/api/v1/job-chat", jobChatRouter);
 // Notification routes
 app.use("/api/v1/notifications", notificationRouter);
 
+// Admin routes
+app.use("/api/admin", adminRouter);
 // HR Agent Chat routes
 app.use("/api/v1/hr-chat", hrChatRouter);
 
@@ -78,5 +81,4 @@ app.use((err, req, res, next) => {
     error: process.env.NODE_ENV === "development" ? err.message : {},
   });
 });
-
 export default app;
