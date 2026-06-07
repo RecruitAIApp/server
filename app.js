@@ -13,6 +13,7 @@ import jobChatRouter from "./src/modules/job-chat/chat.routes.js";
 import notificationRouter from "./src/modules/notifications/notification.routes.js";
 import testRouter from "./src/routes/test.routes.js";
 import recommendationRouter from "./src/modules/recommendations/recommendation.routes.js";
+import hrChatRouter from "./src/modules/application-chat/application-chat.routes.js";
 
 dotenv.config();
 const app = express();
@@ -55,6 +56,9 @@ app.use("/api/v1/job-chat", jobChatRouter);
 
 // Notification routes
 app.use("/api/v1/notifications", notificationRouter);
+
+// HR Agent Chat routes
+app.use("/api/v1/hr-chat", hrChatRouter);
 
 // Test routes (for development/testing)
 app.use("/api/test", testRouter);
