@@ -8,6 +8,9 @@ const router = express.Router();
 router.get("/", authenticate, notificationController.getMyNotifications);
 
 
+router.patch("/read-all", authenticate, notificationController.markAllAsRead);
+
+
 router.patch("/:id/read", authenticate, notificationController.markAsRead);
 
 router.delete("/:id", authenticate, notificationController.deleteNotification);
