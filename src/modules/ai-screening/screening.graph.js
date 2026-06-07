@@ -3,10 +3,11 @@ import Application from "../applications/application.model.js";
 import CandidateProfile from "../auth/candidateProfile.model.js";
 import Job from "../jobs/job.model.js";
 import Company from "../company/company.model.js";
-import { fetchPDFText, publicIdFromUrl } from "../../workers/handlers/cv-parse.handler.js";
+import { cvParseHandler } from "../../workers/handlers/cv-parse.handler.js";
 import { LLMFactory } from "../llm/llm.service.js";
 import { buildScreeningPrompt } from "./screening.prompts.js";
 import { aiScreeningOutputSchema } from "./screening.schemas.js";
+import { QueueService } from "../../common/services/queue.service.js";
 import { createLogger } from "../../utils/logger.js";
 
 const logger = createLogger("screening-graph");
@@ -53,7 +54,7 @@ async function loadCompanyNode(state) {
 async function extractCvNode(state) {
   logger.info(`Extracting CV text for application ${state.applicationId}`);
   const cvUrl = state.application.appliedResume?.url;
-  const publicId = state.application.appliedResume?.publicId || publicIdFromUrl(cvUrl);
+  const publicId = state.application.appliedResume?.publicId || cvParseHandler.publicIdFromUrl(cvUrl);
   
   if (!cvUrl || !publicId) {
     logger.warn(`No CV URL or publicId found for application ${state.applicationId}. Will screen without raw CV text.`);
@@ -61,7 +62,25 @@ async function extractCvNode(state) {
   }
 
   try {
-    const text = await fetchPDFText(publicId, cvUrl);
+    const text = await cvParseHandler.fetchPDFText(publicId, cvUrl);
+    
+    if (text) {
+      // Queue job for embedding the CV text to vector store
+      await QueueService.addJob("background-tasks", "EMBED_RESUME", {
+        type: "EMBED_RESUME",
+        data: {
+          text,
+          metadata: {
+            candidateId: state.application.candidateId.toString(),
+            jobId: state.application.jobId.toString(),
+            type: "cv_embedding"
+          },
+          namespace: "resumes"
+        }
+      });
+      logger.info(`Enqueued CV embedding job for application ${state.applicationId}`);
+    }
+
     return { cvText: text };
   } catch (e) {
     logger.error(`Failed to extract CV text: ${e.message}`);

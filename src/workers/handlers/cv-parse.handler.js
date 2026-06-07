@@ -148,3 +148,9 @@ export async function handleCVParse(data) {
 
   logger.info(`Successfully parsed CV for profile ${profileId}`);
 }
+
+export const cvParseHandler = {
+  fetchPDFText,
+  publicIdFromUrl,
+  handleCVParse
+};

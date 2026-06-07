@@ -10,6 +10,11 @@ import authService from "../modules/auth/auth.service.js";
 import notificationService from "../modules/notifications/notification.service.js";
 import { enqueueJobEmbedding } from "../modules/jobs/queues/job.queue.js";
 import { updateJobService, deleteJobService } from "../modules/jobs/job.service.js";
+import { enqueueResumeEmbedding } from "../modules/vectorstore/candidate-embedding.service.js";
+import { getRecommendationsForCandidate } from "../modules/recommendations/recommendation.service.js";
+import CandidateProfile from "../modules/auth/candidateProfile.model.js";
+import Application from "../modules/applications/application.model.js";
+import { VectorStoreService } from "../modules/vectorstore/vectorstore.service.js";
 
 const router = express.Router();
 
@@ -418,6 +423,277 @@ router.post("/test-full-update-flow", async (req, res) => {
       success: false,
       message: err.message,
     });
+  }
+});
+
+/**
+ * Setup test for Candidate Embedding
+ * Triggers resume embedding generation for a test candidate profile
+ */
+router.post("/setup-candidate-embedding-test", async (req, res) => {
+  try {
+    // 1. Get or Create Candidate
+    let candidate = await User.findOne({ email: "candidate@test.com" });
+    if (!candidate) {
+      candidate = await User.create({
+        email: "candidate@test.com",
+        password: "password123",
+        fullName: "Test Candidate",
+        role: "candidate",
+        status: "active",
+        isActive: true,
+      });
+    }
+
+    // 2. Get or Create Candidate Profile
+    let profile = await CandidateProfile.findOne({ userId: candidate._id });
+    if (!profile) {
+      profile = await CandidateProfile.create({
+        userId: candidate._id,
+        skills: ["Node.js", "Express", "MongoDB", "AI", "React"],
+        preferredRoles: ["Backend Engineer", "Software Engineer"],
+        technologies: ["JavaScript", "TypeScript", "Python"],
+        experience: [
+          {
+            company: "Tech Solutions Inc.",
+            title: "Software Engineer",
+            startDate: new Date(2023, 0, 1),
+            endDate: new Date(2025, 0, 1),
+            currentlyWorking: false,
+            description: "Developed backend APIs using Node.js, Express, and MongoDB. Worked on AI integrations."
+          }
+        ],
+        education: [
+          {
+            institution: "State University",
+            degree: "Bachelor of Science",
+            field: "Computer Science",
+            startYear: 2019,
+            endYear: 2023
+          }
+        ],
+        resume: {
+          parseStatus: "done",
+          parsedData: {
+            skills: ["Node.js", "MongoDB", "Express", "React"],
+            experienceYears: 2,
+            jobTitles: ["Software Engineer"],
+            summary: "Enthusiastic backend engineer with hands-on experience in building scalable web APIs and integrating AI solutions."
+          }
+        }
+      });
+    } else {
+      // Update fields to test update triggers
+      profile.skills = ["Node.js", "Express", "MongoDB", "AI", "React"];
+      profile.preferredRoles = ["Backend Engineer", "Software Engineer"];
+      profile.technologies = ["JavaScript", "TypeScript", "Python"];
+      profile.resume = {
+        parseStatus: "done",
+        parsedData: {
+          skills: ["Node.js", "MongoDB", "Express", "React"],
+          experienceYears: 2,
+          jobTitles: ["Software Engineer"],
+          summary: "Enthusiastic backend engineer with hands-on experience in building scalable web APIs and integrating AI solutions."
+        }
+      };
+      await profile.save();
+    }
+
+    // 3. Manually enqueue candidate resume embedding
+    await enqueueResumeEmbedding(profile);
+
+    res.status(200).json({
+      success: true,
+      message: "Candidate profile setup and enqueued for embedding. Check background worker logs.",
+      data: {
+        profileId: profile._id,
+        userId: candidate._id,
+      }
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+});
+
+/**
+ * Test Recommendations endpoint directly
+ */
+router.get("/recommendations-test", async (req, res) => {
+  try {
+    const candidate = await User.findOne({ email: "candidate@test.com" });
+    if (!candidate) {
+      return res.status(400).json({
+        success: false,
+        message: "Run /api/test/setup-candidate-embedding-test first to create candidate."
+      });
+    }
+
+    const { location, employmentType, seniority, rerank } = req.query;
+
+    const options = {
+      location,
+      employmentType,
+      seniority,
+      rerank: rerank === "false" ? false : true
+    };
+
+    const results = await getRecommendationsForCandidate(candidate._id, options);
+
+    res.status(200).json({
+      success: true,
+      data: results
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+});
+
+/**
+ * Setup test data for HR Chat Agent
+ */
+router.post("/setup-hr-chat-test", async (req, res) => {
+  try {
+    // 1. Setup Employer & Company
+    let employer = await User.findOne({ email: "hr@test.com" });
+    if (!employer) {
+      employer = await User.create({
+        email: "hr@test.com",
+        password: "password123",
+        fullName: "HR Manager",
+        role: "employer",
+        status: "active",
+        isActive: true,
+      });
+    }
+
+    let company = await Company.findOne({ name: "Global AI Solutions" });
+    if (!company) {
+      company = await Company.create({
+        name: "Global AI Solutions",
+        description: "Leading AI company",
+        industry: "Technology",
+        owner: employer._id,
+        status: "active",
+      });
+    }
+
+    // 2. Create Job
+    const job = await Job.create({
+      title: "AI Research Engineer",
+      description: "Join our core research team.",
+      requirements: ["Python", "PyTorch", "NLP", "LLMs"],
+      salaryRange: { min: 120000, max: 200000, currency: "USD" },
+      location: "Cairo",
+      jobType: "onsite",
+      employmentType: "full-time",
+      company: company._id,
+      postedBy: employer._id,
+      status: "open",
+    });
+
+    // 3. Create 3 Candidates with Profiles & Applications
+    const candidatesData = [
+      {
+        fullName: "Ahmed Ali",
+        email: "ahmed@example.com",
+        skills: ["Python", "NLP", "React"],
+        expYears: 6,
+        github: "https://github.com/ahmedali",
+        cvText: "Ahmed Ali. Senior AI Engineer with 6 years of experience in NLP and LLMs. Expert in Python and PyTorch.",
+        score: 95
+      },
+      {
+        fullName: "Sara Hassan",
+        email: "sara@example.com",
+        skills: ["Python", "PyTorch", "Docker"],
+        expYears: 3,
+        github: "https://github.com/sarahassan",
+        cvText: "Sara Hassan. AI Researcher with 3 years experience. Specialized in Computer Vision and Deep Learning with PyTorch.",
+        score: 82
+      },
+      {
+        fullName: "John Doe",
+        email: "john@example.com",
+        skills: ["Java", "Spring", "AWS"],
+        expYears: 10,
+        github: "https://github.com/johndoe",
+        cvText: "John Doe. Senior Backend Engineer with 10 years experience. Transitioning into AI field. Expert in Java and Cloud infrastructure.",
+        score: 45
+      }
+    ];
+
+    const results = [];
+
+    for (const data of candidatesData) {
+      let user = await User.findOne({ email: data.email });
+      if (!user) {
+        user = await User.create({
+          email: data.email,
+          password: "password123",
+          fullName: data.fullName,
+          role: "candidate",
+          status: "active",
+        });
+      }
+
+      let profile = await CandidateProfile.findOne({ userId: user._id });
+      if (!profile) {
+        profile = await CandidateProfile.create({
+          userId: user._id,
+          skills: data.skills,
+          basicInfo: { socialLinks: { github: data.github } },
+          resume: { 
+            parsedData: { experienceYears: data.expYears, skills: data.skills },
+            parseStatus: "done"
+          }
+        });
+      }
+
+      // Create Application
+      const application = await Application.create({
+        candidateId: user._id,
+        jobId: job._id,
+        companyId: company._id,
+        stage: { key: "applied" },
+        aiScreening: {
+          status: "completed",
+          overallScore: data.score,
+          summary: `High match for ${data.fullName}`,
+          matchedSkills: data.skills.filter(s => job.requirements.includes(s))
+        }
+      });
+
+      // Add to Vector Store — save cvText in metadata for direct retrieval
+      await VectorStoreService.embedAndSave(data.cvText, {
+        candidateId: user._id.toString(),
+        jobId: job._id.toString(),
+        applicationId: application._id.toString(),
+        cvText: data.cvText
+      }, "resumes");
+
+      results.push({ user, application });
+    }
+
+    const { accessToken } = await authService.generateTokens(employer);
+
+    res.status(200).json({
+      success: true,
+      message: "HR Chat test data setup complete.",
+      data: {
+        token: accessToken,
+        jobId: job._id,
+        candidatesCount: results.length
+      }
+    });
+  } catch (err) {
+    console.error("HR Chat test setup error:", err);
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
