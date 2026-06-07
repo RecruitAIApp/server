@@ -7,6 +7,7 @@ import { sendResponse } from "../../utils/responseHandler.js";
  */
 export const getMemberships = async (req, res, next) => {
   try {
+    console.log(`Fetching memberships for employer ID: ${req.user.id} , ${req.user.status}`);
     const data = await employerService.getMembershipsService(req.user.id);
     return sendResponse(res, 200, true, "Memberships fetched successfully", data);
   } catch (error) {

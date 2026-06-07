@@ -268,10 +268,53 @@ class AuthController {
     }
   }
 
+  async validateHRInvite(req, res) {
+    try {
+      const { token } = req.query;
+      if (!token) {
+        return res.status(400).json({ success: false, message: "Invitation token is required." });
+      }
+
+      const crypto = await import("crypto");
+      const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+      const HRInvitation = (await import("../company/hrInvitation.model.js")).default;
+      const invitation = await HRInvitation.findOne({ token: hashedToken }).populate("companyId", "name");
+
+      if (!invitation) {
+        return res.status(404).json({ success: false, message: "Invalid invitation token." });
+      }
+
+      if (invitation.accepted) {
+        return res.status(400).json({ success: false, message: "Invitation has already been accepted." });
+      }
+
+      if (invitation.expiresAt < new Date()) {
+        return res.status(400).json({ success: false, message: "Invitation has expired." });
+      }
+
+      // Check if user already exists
+      const User = (await import("./user.model.js")).default;
+      const userExists = await User.exists({ email: invitation.email });
+
+      return res.status(200).json({
+        success: true,
+        email: invitation.email,
+        companyName: invitation.companyId?.name || "Company",
+        userExists: Boolean(userExists),
+      });
+    } catch (err) {
+      return res.status(500).json({
+        success: false,
+        message: err.message || "Failed to validate invitation.",
+      });
+    }
+  }
+
   async acceptHRInvite(req, res, next) {
     try {
-      const { token, password } = req.validatedBody;
-      const result = await authService.acceptHRInviteService(token, password);
+      const { token, password, fullName } = req.validatedBody;
+      const result = await authService.acceptHRInviteService(token, password, fullName);
 
       return res.status(200).json({
         success: true,

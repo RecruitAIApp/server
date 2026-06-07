@@ -288,7 +288,7 @@ class AuthService {
     return { success: true, message: "Password reset successful." };
   }
 
-  async acceptHRInviteService(token, password) {
+  async acceptHRInviteService(token, password, fullName) {
     const crypto = await import("crypto");
     const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
 
@@ -324,6 +324,7 @@ class AuthService {
         role: "employer",
         status: "active",
         isActive: true,
+        fullName: fullName || invitation.email.split("@")[0],
       });
 
       await user.save();

@@ -55,7 +55,7 @@ export const getJobByIdService = async (id) => {
     .populate("company", "name logo industry location")
     .populate("postedBy", "name email");
 
-  if (!job || job.status !== "open") {
+  if (!job) {
     const error = new Error("Job not found");
     error.statusCode = 404;
     throw error;

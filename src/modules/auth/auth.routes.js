@@ -35,6 +35,12 @@ router.post("/login", validateBody(loginSchema), authController.login);
 // POST /api/auth/refresh
 router.post("/refresh", validateBody(refreshSchema), authController.refresh);
 
+// GET /api/auth/validate-hr-invite
+router.get(
+  "/validate-hr-invite",
+  authController.validateHRInvite
+);
+
 // POST /api/auth/accept-hr-invite
 router.post(
   "/accept-hr-invite",

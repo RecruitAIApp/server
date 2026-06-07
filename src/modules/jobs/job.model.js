@@ -25,7 +25,11 @@ const jobSchema = new Schema(
         required: true,
         validate: {
           validator: function (v) {
-            return v >= this.salaryRange.min;
+            const minVal = this?.salaryRange?.min ?? (this?.get ? this.get('salaryRange.min') : undefined);
+            if (minVal !== undefined) {
+              return v >= minVal;
+            }
+            return true;
           },
           message: "Max salary must be >= min salary",
         },
