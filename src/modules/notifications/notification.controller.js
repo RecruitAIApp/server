@@ -43,6 +43,16 @@ class NotificationController {
       return sendResponse(res, 500, false, "Failed to update notification", error.message);
     }
   }
+
+  async markAllAsRead(req, res) {
+    try {
+      const userId = req.user._id || req.user.id;
+      await notificationService.markAllAsRead(userId);
+      return sendResponse(res, 200, true, "All notifications marked as read");
+    } catch (error) {
+      return sendResponse(res, 500, false, "Failed to update notifications", error.message);
+    }
+  }
 }
 
 export default new NotificationController();

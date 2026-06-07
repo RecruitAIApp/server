@@ -14,6 +14,7 @@ import { enqueueResumeEmbedding } from "../modules/vectorstore/candidate-embeddi
 import { getRecommendationsForCandidate } from "../modules/recommendations/recommendation.service.js";
 import CandidateProfile from "../modules/auth/candidateProfile.model.js";
 import Application from "../modules/applications/application.model.js";
+import Notification from "../modules/notifications/notification.model.js";
 import { VectorStoreService } from "../modules/vectorstore/vectorstore.service.js";
 
 const router = express.Router();
@@ -694,6 +695,86 @@ router.post("/setup-hr-chat-test", async (req, res) => {
   } catch (err) {
     console.error("HR Chat test setup error:", err);
     res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
+ * Seed notifications for a specific user ID for testing
+ * NO AUTH REQUIRED FOR THIS TEST ENDPOINT
+ */
+router.post("/notification-seed", async (req, res) => {
+  try {
+    const userId = req.body.userId || "6a2570776f4b53c680e96a0e";
+    
+    const testNotifications = [
+      {
+        user: userId,
+        type: "application",
+        title: "New Application Received",
+        message: "A new candidate has applied for the Senior Node.js Developer position.",
+        data: { jobId: "job123", applicationId: "app456" },
+        read: false,
+      },
+      {
+        user: userId,
+        type: "interview",
+        title: "Interview Scheduled",
+        message: "Your interview with Tech Solutions Inc. is scheduled for tomorrow at 10:00 AM.",
+        data: { interviewId: "int789" },
+        read: false,
+      },
+      {
+        user: userId,
+        type: "job",
+        title: "New Job Match",
+        message: "We found a new job that matches your skills: Full Stack Engineer at StartupX.",
+        data: { jobId: "job789" },
+        read: false,
+      },
+      {
+        user: userId,
+        type: "system",
+        title: "Profile Updated",
+        message: "Your profile has been successfully updated. Make sure to keep your skills up to date!",
+        data: {},
+        read: true,
+      },
+      {
+        user: userId,
+        type: "application",
+        title: "Application Status Update",
+        message: "Your application for Frontend Developer has been moved to 'Shortlisted'.",
+        data: { applicationId: "app789" },
+        read: false,
+      }
+    ];
+
+    // Clear existing notifications first for a clean state
+    await Notification.deleteMany({ user: userId });
+
+    // Create notifications
+    const created = [];
+    for (const notifData of testNotifications) {
+      const { read, ...rest } = notifData;
+      let notif = await notificationService.notify(userId, rest);
+      
+      if (read) {
+        notif = await Notification.findByIdAndUpdate(notif._id, { read: true }, { new: true });
+      }
+      
+      created.push(notif);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Seeded ${created.length} notifications for user ${userId}`,
+      data: created
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
   }
 });
 
