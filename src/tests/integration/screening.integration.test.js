@@ -198,6 +198,5 @@ describe("AI Screening Integration Tests", () => {
     assert.strictEqual(jobData.type, "EMBED_RESUME");
     assert.strictEqual(jobData.data.metadata.candidateId, user._id.toString());
     assert.strictEqual(jobData.data.metadata.jobId, validJob._id.toString());
-    assert.strictEqual(jobData.data.metadata.profileId, profile._id.toString());
   });
 });

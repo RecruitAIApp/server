@@ -71,10 +71,8 @@ async function extractCvNode(state) {
         data: {
           text,
           metadata: {
-            profileId: state.candidate._id.toString(),
             candidateId: state.application.candidateId.toString(),
             jobId: state.application.jobId.toString(),
-            applicationId: state.applicationId,
             type: "cv_embedding"
           },
           namespace: "resumes"
