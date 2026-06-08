@@ -31,14 +31,14 @@ export const unbanUser = async (req, res, next) => {
   }
 };
 
-export const approveEmployer = async (req, res, next) => {
-  try {
-    const user = await adminService.approveEmployerService(req.params.userId);
-    return sendResponse(res, 200, true, "Employer approved successfully", user);
-  } catch (err) {
-    next(err);
-  }
-};
+// export const approveEmployer = async (req, res, next) => {
+//   try {
+//     const user = await adminService.approveEmployerService(req.params.userId);
+//     return sendResponse(res, 200, true, "Employer approved successfully", user);
+//   } catch (err) {
+//     next(err);
+//   }
+// };
 
 export const deleteJob = async (req, res, next) => {
   try {
@@ -58,10 +58,39 @@ export const getPlatformStats = async (req, res, next) => {
   }
 };
 
-export const getPendingEmployers = async (req, res, next) => {
+export const getPendingCompanies = async (req, res, next) => {
   try {
-    const data = await adminService.getPendingEmployersService();
-    return sendResponse(res, 200, true, "Pending employers fetched", data);
+    const data = await adminService.getPendingCompaniesService();
+    return sendResponse(res, 200, true, "Pending companies fetched", data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const approveCompany = async (req, res, next) => {
+  try {
+    const company = await adminService.approveCompanyService(
+      req.params.companyId,
+    );
+    return sendResponse(
+      res,
+      200,
+      true,
+      "Company approved successfully",
+      company,
+    );
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const rejectCompany = async (req, res, next) => {
+  try {
+    const company = await adminService.rejectCompanyService(
+      req.params.companyId,
+      req.body.reason,
+    );
+    return sendResponse(res, 200, true, "Company rejected", company);
   } catch (err) {
     next(err);
   }
