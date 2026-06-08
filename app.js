@@ -16,6 +16,7 @@ import adminRouter from "./src/modules/admin/admin.routes.js";
 import recommendationRouter from "./src/modules/recommendations/recommendation.routes.js";
 import hrChatRouter from "./src/modules/application-chat/application-chat.routes.js";
 import analyticsRouter from "./src/modules/analytics/analytics.routes.js";
+import aiEvalRouter from "./src/modules/ai-eval/aiEval.routes.js";
 
 dotenv.config();
 const app = express();
@@ -64,6 +65,9 @@ app.use("/api/admin", adminRouter);
 
 // Analytics routes
 app.use("/api/analytics", analyticsRouter);
+
+// AI-Eval routes
+app.use("/api/ai-eval", aiEvalRouter);
 
 // HR Agent Chat routes
 app.use("/api/v1/hr-chat", hrChatRouter);
