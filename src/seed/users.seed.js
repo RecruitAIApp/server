@@ -1,15 +1,17 @@
 import User from "../modules/auth/user.model.js";
 import Company from "../modules/company/company.model.js";
 import CandidateProfile from "../modules/auth/candidateProfile.model.js";
+import EmployerProfile from "../modules/auth/employerProfile.model.js";
 
 export default async function seedUsersAndCompanies() {
   console.log("Seeding Users and Companies...");
 
-  const employer1 = await User.create({
-    email: "employer@techcorp.com",
+  // 1. TechCorp Company & Employees
+  const owner1 = await User.create({
+    email: "owner@techcorp.com",
     password: "password123",
     role: "employer",
-    fullName: "TechCorp Admin",
+    fullName: "TechCorp Owner",
     status: "active",
     isActive: true,
   });
@@ -18,15 +20,37 @@ export default async function seedUsersAndCompanies() {
     name: "TechCorp",
     description: "Leading tech solutions provider.",
     industry: "Technology",
-    owner: employer1._id,
+    owner: owner1._id,
     status: "active",
   });
 
-  const employer2 = await User.create({
+  await EmployerProfile.create({
+    userId: owner1._id,
+    companyId: company1._id,
+    role: "owner",
+  });
+
+  const hr1 = await User.create({
+    email: "hr@techcorp.com",
+    password: "password123",
+    role: "employer",
+    fullName: "TechCorp HR",
+    status: "active",
+    isActive: true,
+  });
+
+  await EmployerProfile.create({
+    userId: hr1._id,
+    companyId: company1._id,
+    role: "hr",
+  });
+
+  // 2. Innovate Solutions Company & Employees
+  const owner2 = await User.create({
     email: "hr@innovatesolutions.com",
     password: "password123",
     role: "employer",
-    fullName: "Innovate HR",
+    fullName: "Innovate HR & Owner",
     status: "active",
     isActive: true,
   });
@@ -35,10 +59,17 @@ export default async function seedUsersAndCompanies() {
     name: "Innovate Solutions",
     description: "Creative design and product agency.",
     industry: "Design",
-    owner: employer2._id,
+    owner: owner2._id,
     status: "active",
   });
 
+  await EmployerProfile.create({
+    userId: owner2._id,
+    companyId: company2._id,
+    role: "owner",
+  });
+
+  // 3. Candidates
   const candidate1 = await User.create({
     email: "candidate@example.com",
     password: "password123",
@@ -120,9 +151,153 @@ export default async function seedUsersAndCompanies() {
     }
   });
 
+  const candidate4 = await User.create({
+    email: "michael.brown@example.com",
+    password: "password123",
+    role: "candidate",
+    fullName: "Michael Brown",
+    status: "active",
+    isActive: true,
+  });
+
+  await CandidateProfile.create({
+    userId: candidate4._id,
+    basicInfo: { headline: "Senior React Native Developer", bio: "Cross-platform mobile apps expert." },
+    skills: ["React Native", "TypeScript", "JavaScript"],
+    resume: {
+      url: "https://example.com/cv4.pdf",
+      publicId: "cv_4",
+      fileName: "michael_brown_cv.pdf",
+      parseStatus: "done",
+      parsedData: {
+        skills: ["React Native", "TypeScript"],
+        experienceYears: 6,
+        jobTitles: ["Mobile Engineer"],
+        summary: "Mobile app developer"
+      }
+    }
+  });
+
+  const candidate5 = await User.create({
+    email: "emily.davis@example.com",
+    password: "password123",
+    role: "candidate",
+    fullName: "Emily Davis",
+    status: "active",
+    isActive: true,
+  });
+
+  await CandidateProfile.create({
+    userId: candidate5._id,
+    basicInfo: { headline: "Backend Engineer", bio: "Microservices and cloud solutions architecture." },
+    skills: ["Node.js", "Express", "Docker", "AWS"],
+    resume: {
+      url: "https://example.com/cv5.pdf",
+      publicId: "cv_5",
+      fileName: "emily_davis_cv.pdf",
+      parseStatus: "done",
+      parsedData: {
+        skills: ["Node.js", "AWS", "Docker"],
+        experienceYears: 4,
+        jobTitles: ["Backend Developer"],
+        summary: "Cloud and API engineer"
+      }
+    }
+  });
+
+  const candidate6 = await User.create({
+    email: "david.wilson@example.com",
+    password: "password123",
+    role: "candidate",
+    fullName: "David Wilson",
+    status: "active",
+    isActive: true,
+  });
+
+  await CandidateProfile.create({
+    userId: candidate6._id,
+    basicInfo: { headline: "QA Automation Engineer", bio: "Obsessed with bug-free code and automation." },
+    skills: ["Playwright", "Cypress", "Selenium", "JavaScript"],
+    resume: {
+      url: "https://example.com/cv6.pdf",
+      publicId: "cv_6",
+      fileName: "david_wilson_cv.pdf",
+      parseStatus: "done",
+      parsedData: {
+        skills: ["Playwright", "Cypress"],
+        experienceYears: 3,
+        jobTitles: ["QA Engineer"],
+        summary: "Automation specialist"
+      }
+    }
+  });
+
+  const candidate7 = await User.create({
+    email: "jessica.taylor@example.com",
+    password: "password123",
+    role: "candidate",
+    fullName: "Jessica Taylor",
+    status: "active",
+    isActive: true,
+  });
+
+  await CandidateProfile.create({
+    userId: candidate7._id,
+    basicInfo: { headline: "Python AI Developer", bio: "Building intelligent agents and LLM applications." },
+    skills: ["Python", "FastAPI", "LangChain", "OpenAI"],
+    resume: {
+      url: "https://example.com/cv7.pdf",
+      publicId: "cv_7",
+      fileName: "jessica_taylor_cv.pdf",
+      parseStatus: "done",
+      parsedData: {
+        skills: ["Python", "LangChain"],
+        experienceYears: 5,
+        jobTitles: ["AI Developer"],
+        summary: "AI systems engineer"
+      }
+    }
+  });
+
+  const candidate8 = await User.create({
+    email: "daniel.thomas@example.com",
+    password: "password123",
+    role: "candidate",
+    fullName: "Daniel Thomas",
+    status: "active",
+    isActive: true,
+  });
+
+  await CandidateProfile.create({
+    userId: candidate8._id,
+    basicInfo: { headline: "Senior React Developer", bio: "Specialized in styling, animation, and performance." },
+    skills: ["React", "TypeScript", "Tailwind CSS", "Redux"],
+    resume: {
+      url: "https://example.com/cv8.pdf",
+      publicId: "cv_8",
+      fileName: "daniel_thomas_cv.pdf",
+      parseStatus: "done",
+      parsedData: {
+        skills: ["React", "TypeScript", "Tailwind CSS"],
+        experienceYears: 7,
+        jobTitles: ["Senior Frontend Developer"],
+        summary: "React and UI expert"
+      }
+    }
+  });
+
   return { 
-    employers: [employer1, employer2], 
+    employers: [owner1, owner2], 
     companies: [company1, company2], 
-    candidates: [candidate1, candidate2, candidate3] 
+    candidates: [
+      candidate1, 
+      candidate2, 
+      candidate3, 
+      candidate4, 
+      candidate5, 
+      candidate6, 
+      candidate7, 
+      candidate8
+    ] 
   };
 }

@@ -39,7 +39,7 @@ export const updateStageSchema = Joi.object({
         'any.only': 'Stage must be one of: applied, shortlisted, interview, offer, hired, rejected'
       })
     }).required(),
-    notes: Joi.string().max(500).optional().messages({
+    notes: Joi.string().allow('').max(500).optional().messages({
       'string.max': 'Notes must be at most 500 characters long'
     })
   }).required()

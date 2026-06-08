@@ -114,6 +114,8 @@ const applicationSchema = new mongoose.Schema(
 
         content: String,
 
+        ratingScore: Number,
+
         createdAt: Date,
       },
     ],

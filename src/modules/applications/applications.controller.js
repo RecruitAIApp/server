@@ -207,6 +207,51 @@ export const addApplicationNoteController = async (req, res) => {
   }
 };
 
+export const updateApplicationNoteController = async (req, res) => {
+  try {
+    const { id, noteId } = req.params;
+    const noteData = req.body;
+    const user = req.user;
+
+    const updated = await applicationService.updateApplicationNote(id, noteId, noteData, user);
+
+    return sendResponse(
+      res,
+      200,
+      true,
+      'Note updated successfully',
+      updated
+    );
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+export const deleteApplicationNoteController = async (req, res) => {
+  try {
+    const { id, noteId } = req.params;
+    const user = req.user;
+
+    const updated = await applicationService.deleteApplicationNote(id, noteId, user);
+
+    return sendResponse(
+      res,
+      200,
+      true,
+      'Note deleted successfully',
+      updated
+    );
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 export const getCandidateApplicationsController = async (req, res) => {
   try {
     const candidateId = req.user.id || req.user.userId;

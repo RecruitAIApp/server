@@ -42,5 +42,31 @@ export default async function seedJobs(employers, companies) {
     status: "open",
   });
 
-  return [job1, job2, job3];
+  const job4 = await Job.create({
+    title: "QA Automation Engineer",
+    description: "Looking for a QA engineer to build automated test suites using Playwright or Cypress.",
+    requirements: ["Playwright", "Cypress", "JavaScript", "CI/CD"],
+    salaryRange: { min: 80, max: 110, currency: "USD" },
+    location: "Remote",
+    jobType: "remote",
+    employmentType: "full-time",
+    company: companies[0]._id,
+    postedBy: employers[0]._id,
+    status: "open",
+  });
+
+  const job5 = await Job.create({
+    title: "Python AI Developer",
+    description: "Build AI-driven pipelines using LangChain, OpenAI, and Python.",
+    requirements: ["Python", "LangChain", "OpenAI", "FastAPI"],
+    salaryRange: { min: 130, max: 170, currency: "USD" },
+    location: "Remote",
+    jobType: "remote",
+    employmentType: "full-time",
+    company: companies[0]._id,
+    postedBy: employers[0]._id,
+    status: "open",
+  });
+
+  return [job1, job2, job3, job4, job5];
 }

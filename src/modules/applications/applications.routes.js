@@ -28,6 +28,8 @@ router.get('/job/:id', [protect, isEmployerOrHR, validate(jobIdSchema), isJobOwn
 router.get('/job/:id/kanban', [protect, isEmployerOrHR, validate(jobIdSchema), isJobOwner], ApplicationController.getJobKanbanController);
 router.post('/retry-screening/:applicationId', [protect, isEmployerOrHR, validate(applicationIdSchema)], ApplicationController.retryScreeningController);
 router.post('/:id/notes', [protect, isEmployerOrHR, validate(addNoteSchema)], ApplicationController.addApplicationNoteController);
+router.put('/:id/notes/:noteId', [protect, isEmployerOrHR], ApplicationController.updateApplicationNoteController);
+router.delete('/:id/notes/:noteId', [protect, isEmployerOrHR], ApplicationController.deleteApplicationNoteController);
 router.post('/quick-apply', [protect, isCandidate, validate(quickApplyValidation)], ApplicationController.quickApplyController);
 
 export default router;
