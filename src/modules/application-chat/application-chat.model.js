@@ -19,6 +19,10 @@ const messageSchema = new Schema({
   candidates: [{
     type: Object,
   }],
+  isFinal: {
+    type: Boolean,
+    default: false,
+  },
   timestamp: {
     type: Date,
     default: Date.now,

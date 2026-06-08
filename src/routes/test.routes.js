@@ -15,6 +15,7 @@ import { getRecommendationsForCandidate } from "../modules/recommendations/recom
 import CandidateProfile from "../modules/auth/candidateProfile.model.js";
 import Application from "../modules/applications/application.model.js";
 import Notification from "../modules/notifications/notification.model.js";
+import EmployerProfile from "../modules/auth/employerProfile.model.js";
 import { VectorStoreService } from "../modules/vectorstore/vectorstore.service.js";
 
 const router = express.Router();
@@ -599,6 +600,8 @@ router.get("/recommendations-test", async (req, res) => {
 
 /**
  * Setup test data for HR Chat Agent
+ * Creates a dedicated environment with 5 diverse candidates, detailed profiles,
+ * vector embeddings for CVs, and varied application statuses.
  */
 router.post("/setup-hr-chat-test", async (req, res) => {
   try {
@@ -608,72 +611,130 @@ router.post("/setup-hr-chat-test", async (req, res) => {
       employer = await User.create({
         email: "hr@test.com",
         password: "password123",
-        fullName: "HR Manager",
+        fullName: "HR Director",
         role: "employer",
         status: "active",
         isActive: true,
       });
     }
 
-    let company = await Company.findOne({ name: "Global AI Solutions" });
+    let company = await Company.findOne({ name: "Cognitive AI Labs" });
     if (!company) {
       company = await Company.create({
-        name: "Global AI Solutions",
-        description: "Leading AI company",
-        industry: "Technology",
+        name: "Cognitive AI Labs",
+        description: "A premier research lab focusing on Large Language Models and Enterprise AI agents.",
+        industry: "Artificial Intelligence",
+        size: "500+",
+        website: "https://cognitive.ai",
         owner: employer._id,
         status: "active",
       });
     }
 
-    // 2. Create Job
-    const job = await Job.create({
-      title: "AI Research Engineer",
-      description: "Join our core research team.",
-      requirements: ["Python", "PyTorch", "NLP", "LLMs"],
-      salaryRange: { min: 120000, max: 200000, currency: "USD" },
-      location: "Cairo",
-      jobType: "onsite",
-      employmentType: "full-time",
-      company: company._id,
-      postedBy: employer._id,
-      status: "open",
-    });
+    // 2. Create high-stakes Job
+    let job = await Job.findOne({ title: "Lead AI Research Engineer", company: company._id });
+    if (!job) {
+      job = await Job.create({
+        title: "Lead AI Research Engineer",
+        description: "We are seeking a Lead AI Engineer to guide our RAG and Agentic workflows. You will design scalable architectures for LLM orchestration.",
+        requirements: ["Python", "PyTorch", "NLP", "LLMs", "LangChain", "Vector Databases"],
+        salaryRange: { min: 150000, max: 250000, currency: "USD" },
+        location: "Cairo / Remote",
+        jobType: "hybrid",
+        employmentType: "full-time",
+        experienceLevel: "lead",
+        company: company._id,
+        postedBy: employer._id,
+        status: "open",
+      });
+    }
 
-    // 3. Create 3 Candidates with Profiles & Applications
+    // 3. Define 5 diverse candidates with rich data
     const candidatesData = [
       {
-        fullName: "Ahmed Ali",
-        email: "ahmed@example.com",
-        skills: ["Python", "NLP", "React"],
-        expYears: 6,
-        github: "https://github.com/ahmedali",
-        cvText: "Ahmed Ali. Senior AI Engineer with 6 years of experience in NLP and LLMs. Expert in Python and PyTorch.",
-        score: 95
+        fullName: "Omar Khalid",
+        email: "omar.khalid@test.com",
+        location: { city: "Cairo", country: "Egypt" },
+        headline: "Expert AI Architect | 8 YOE in Transformer Models",
+        bio: "Passionate AI researcher with multiple publications in NLP. Specialized in building custom RAG solutions and fine-tuning open-source LLMs.",
+        skills: ["Python", "PyTorch", "NLP", "LangChain", "Groq", "Vector DB"],
+        experience: [
+          { company: "AI Frontiers", title: "Senior AI Engineer", startDate: "2020-01-01", description: "Led the development of a production-grade internal chatbot.", currentlyWorking: true }
+        ],
+        education: [{ institution: "Cairo University", degree: "Masters", field: "Computer Science", startYear: 2016, endYear: 2018 }],
+        score: 98,
+        stage: "shortlisted",
+        cvSnippet: "Omar is a veteran in the AI field. He built a proprietary vector storage engine and has extensive experience with LangChain and Groq processing."
       },
       {
-        fullName: "Sara Hassan",
-        email: "sara@example.com",
-        skills: ["Python", "PyTorch", "Docker"],
-        expYears: 3,
-        github: "https://github.com/sarahassan",
-        cvText: "Sara Hassan. AI Researcher with 3 years experience. Specialized in Computer Vision and Deep Learning with PyTorch.",
-        score: 82
+        fullName: "Layla Mansour",
+        email: "layla.mansour@test.com",
+        location: { city: "Alexandria", country: "Egypt" },
+        headline: "Machine Learning Engineer specialized in MLOps",
+        bio: "Focused on the deployment side of AI. Ensuring models are scalable, monitored, and highly available.",
+        skills: ["Python", "TensorFlow", "Docker", "Kubernetes", "Redis"],
+        experience: [
+          { company: "Data Systems", title: "ML Engineer", startDate: "2021-06-01", description: "Streamlined deployment pipelines for image recognition models.", currentlyWorking: false }
+        ],
+        education: [{ institution: "AUC (American University in Cairo)", degree: "Bachelors", field: "Engineering", startYear: 2017, endYear: 2021 }],
+        score: 82,
+        stage: "applied",
+        cvSnippet: "Layla has a strong background in TensorFlow and infrastructure. Her work at Data Systems involved deploying models for high-traffic applications."
       },
       {
-        fullName: "John Doe",
-        email: "john@example.com",
-        skills: ["Java", "Spring", "AWS"],
-        expYears: 10,
-        github: "https://github.com/johndoe",
-        cvText: "John Doe. Senior Backend Engineer with 10 years experience. Transitioning into AI field. Expert in Java and Cloud infrastructure.",
-        score: 45
+        fullName: "Michael Smith",
+        email: "mike.smith@test.com",
+        location: { city: "London", country: "UK" },
+        headline: "Senior Backend Specialist | 12 YOE",
+        bio: "Architecture-first developer. Expert in distributed systems and high-concurrency Java/Node environments.",
+        skills: ["Java", "Spring Boot", "AWS", "Python", "SQL"],
+        experience: [
+          { company: "Global Bank", title: "Lead Backend Developer", startDate: "2015-01-01", description: "Managed the core transaction engine architecture.", currentlyWorking: true }
+        ],
+        education: [{ institution: "Stanford University", degree: "BS", field: "Computer Science", startYear: 2008, endYear: 2012 }],
+        score: 55, // Low match for AI specific role, but high general seniority
+        stage: "applied",
+        cvSnippet: "Michael is an exceptionally senior developer from Stanford. While his AI-specific skills are emerging, his architectural knowledge of AWS and Python is top-tier."
+      },
+      {
+        fullName: "Hana Ibrahim",
+        email: "hana.i@test.com",
+        location: { city: "Cairo", country: "Egypt" },
+        headline: "Rising AI Talent | NLP Enthusiast",
+        bio: "Fast learner with a deep interest in Generative AI. Recently completed advanced certifications in Prompt Engineering.",
+        skills: ["Python", "FastAPI", "NLP", "Prompt Engineering"],
+        experience: [
+          { company: "StartupX", title: "AI Intern", startDate: "2023-09-01", description: "Developed prototypes for automated document summarization.", currentlyWorking: false }
+        ],
+        education: [{ institution: "Ain Shams University", degree: "Bachelors", field: "Computer Science", startYear: 2020, endYear: 2024 }],
+        score: 75,
+        stage: "interview",
+        cvSnippet: "Hana shows great potential. Her internship at StartupX involved cutting-edge research in NLP and document summarization using FastAPI."
+      },
+      {
+        fullName: "Youssef Zayed",
+        email: "youssef.z@test.com",
+        location: { city: "Giza", country: "Egypt" },
+        headline: "Creative UI Designer",
+        bio: "Visual storyteller focusing on modern web aesthetics and user flow.",
+        skills: ["JavaScript", "HTML/CSS", "Figma", "React"],
+        experience: [
+          { company: "Pixel Studio", title: "UI Designer", startDate: "2022-01-01", description: "Created high-fidelity mockups for various client websites.", currentlyWorking: true }
+        ],
+        education: [{ institution: "Helwan University", degree: "Bachelors", field: "Applied Arts", startYear: 2018, endYear: 2022 }],
+        score: 15,
+        stage: "rejected",
+        cvSnippet: "Youssef is primarily a designer from Helwan University. Although he knows some React and JS, he lacks the research-heavy AI experience required for this lead role."
       }
     ];
 
     const results = [];
 
+    // Clear previous vector data for this job to avoid duplicates in test
+    // (Optional but good for clean tests if VectorStoreService supports it)
+
     for (const data of candidatesData) {
+      // 3.1 Setup User
       let user = await User.findOne({ email: data.email });
       if (!user) {
         user = await User.create({
@@ -685,39 +746,50 @@ router.post("/setup-hr-chat-test", async (req, res) => {
         });
       }
 
+      // 3.2 Setup Detailed Profile
       let profile = await CandidateProfile.findOne({ userId: user._id });
       if (!profile) {
         profile = await CandidateProfile.create({
           userId: user._id,
+          basicInfo: {
+            headline: data.headline,
+            bio: data.bio,
+            location: data.location,
+          },
           skills: data.skills,
-          basicInfo: { socialLinks: { github: data.github } },
-          resume: { 
-            parsedData: { experienceYears: data.expYears, skills: data.skills },
-            parseStatus: "done"
+          experience: data.experience,
+          education: data.education,
+          resume: {
+            parseStatus: "done",
+            parsedData: {
+              skills: data.skills,
+              experienceYears: data.experience[0]?.startDate ? 4 : 0, // Simplified for test
+              jobTitles: data.experience.map(e => e.title),
+              summary: data.bio
+            }
           }
         });
       }
 
-      // Create Application
+      // 3.3 Create Application
+      await Application.deleteMany({ candidateId: user._id, jobId: job._id });
       const application = await Application.create({
         candidateId: user._id,
         jobId: job._id,
         companyId: company._id,
-        stage: { key: "applied" },
+        stage: { key: data.stage },
         aiScreening: {
           status: "completed",
           overallScore: data.score,
-          summary: `High match for ${data.fullName}`,
+          summary: `Candidate profile shows ${data.score}% alignment with core requirements.`,
           matchedSkills: data.skills.filter(s => job.requirements.includes(s))
         }
       });
 
-      // Add to Vector Store — save cvText in metadata for direct retrieval
-      await VectorStoreService.embedAndSave(data.cvText, {
+      // 3.4 Seed Vector Store for CV search
+      await VectorStoreService.embedAndSave(data.cvSnippet, {
         candidateId: user._id.toString(),
         jobId: job._id.toString(),
-        applicationId: application._id.toString(),
-        cvText: data.cvText
       }, "resumes");
 
       results.push({ user, application });
@@ -727,15 +799,62 @@ router.post("/setup-hr-chat-test", async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: "HR Chat test data setup complete.",
+      message: "HR Chat rich test data setup complete. Ready for agent testing.",
       data: {
         token: accessToken,
         jobId: job._id,
-        candidatesCount: results.length
+        candidatesCount: results.length,
+        hints: [
+          "Try asking: 'Tell me about Omar Khalid's AI background'",
+          "Try asking: 'Who is the most qualified candidate based on score?'",
+          "Try asking: 'Search for candidates from Stanford University'",
+          "Try asking: 'Who has experience with LangChain?'"
+        ]
       }
     });
   } catch (err) {
     console.error("HR Chat test setup error:", err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
+ * Force Link a User to a Company
+ * Useful for fixing "Workspace Unlinked" in test environments.
+ * Body: { email, companyName }
+ */
+router.post("/force-link-company", async (req, res) => {
+  try {
+    const { email, companyName } = req.body;
+    
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
+    const company = await Company.findOne({ name: companyName });
+    if (!company) return res.status(404).json({ success: false, message: "Company not found" });
+
+    // Link via EmployerProfile (this is what EmployerHrDashboard checks)
+    let profile = await EmployerProfile.findOne({ userId: user._id, companyId: company._id });
+    if (!profile) {
+      profile = await EmployerProfile.create({
+        userId: user._id,
+        companyId: company._id,
+        role: "owner"
+      });
+    }
+
+    // Also ensure the user is 'owner' or in 'HRs' in the company model for good measure
+    if (company.owner.toString() !== user._id.toString() && !company.HRs.includes(user._id)) {
+      company.HRs.push(user._id);
+      await company.save();
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `User ${email} linked to ${companyName} successfully.`,
+      data: profile
+    });
+  } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -817,6 +936,106 @@ router.post("/notification-seed", async (req, res) => {
       success: false,
       message: err.message,
     });
+  }
+});
+
+/**
+ * Seed Extra HR Data
+ * Adds 2 more jobs and several applications to Cognitive AI Labs
+ * Use this to test the Context Switcher in HR Assistant
+ */
+router.get("/seed-extra-hr-data", async (req, res) => {
+  try {
+    const hr = await User.findOne({ email: "hr@test.com" });
+    const company = await Company.findOne({ name: "Cognitive AI Labs" });
+
+    if (!company || !hr) {
+      return res.status(400).json({ success: false, message: "Run setup-hr-chat-test first!" });
+    }
+
+    const extraJobs = [
+      {
+        title: "Senior Product Designer",
+        description: "Focus on creating clean, accessible interfaces for our AI-powered dashboards. Experience with Figma and design systems is required.",
+        requirements: ["Figma", "Design Systems", "User Research", "Accessibility"],
+        salaryRange: { min: 80000, max: 130000, currency: "USD" },
+        location: "Cairo",
+        jobType: "onsite",
+        employmentType: "full-time",
+        experienceLevel: "senior",
+        company: company._id,
+        postedBy: hr._id,
+        status: "open",
+      },
+      {
+        title: "Cloud Infrastructure Engineer",
+        description: "Scale our LLM inference infrastructure. Manage Kubernetes clusters and optimize cloud costs.",
+        requirements: ["Kubernetes", "AWS", "Terraform", "Docker", "Python"],
+        salaryRange: { min: 110000, max: 180000, currency: "USD" },
+        location: "Remote",
+        jobType: "remote",
+        employmentType: "full-time",
+        experienceLevel: "senior",
+        company: company._id,
+        postedBy: hr._id,
+        status: "open",
+      }
+    ];
+
+    const createdJobs = [];
+    for (const data of extraJobs) {
+      let job = await Job.findOne({ title: data.title, company: company._id });
+      if (!job) {
+        job = await Job.create(data);
+      }
+      createdJobs.push(job);
+    }
+
+    // Add some applications for the first extra job (Product Designer)
+    const designerCandidates = [
+      { name: "Sara Ahmed", email: "sara.design@test.com", snippet: "Sara is a pixel-perfect designer with 6 years at top agencies. Expert in Figma and Design Systems." },
+      { name: "Ahmed Ali", email: "ahmed.a@test.com", snippet: "Traditional designer moving into digital. Strong visual skills but learning accessibility." }
+    ];
+
+    for (const cand of designerCandidates) {
+      let user = await User.findOne({ email: cand.email });
+      if (!user) {
+        user = await User.create({ email: cand.email, password: "password123", fullName: cand.name, role: "candidate", status: "active" });
+      }
+      
+      let profile = await CandidateProfile.findOne({ userId: user._id });
+      if (!profile) {
+        profile = await CandidateProfile.create({
+          userId: user._id,
+          basicInfo: { headline: "UI/UX Designer", location: { city: "Giza", country: "Egypt" } },
+          skills: ["Figma", "Photoshop", "React"],
+        });
+      }
+
+      await Application.create({
+        candidateId: user._id,
+        jobId: createdJobs[0]._id,
+        companyId: company._id,
+        stage: { key: "applied" },
+        aiScreening: { status: "completed", overallScore: 85 }
+      });
+
+      await VectorStoreService.embedAndSave(cand.snippet, {
+        candidateId: user._id.toString(),
+        jobId: createdJobs[0]._id.toString(),
+      }, "resumes");
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Extra jobs and applications seeded successfully.",
+      data: {
+        jobs: createdJobs.map(j => ({ id: j._id, title: j.title }))
+      }
+    });
+
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 

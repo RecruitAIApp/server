@@ -121,7 +121,7 @@ const finalAnswerSchema = z.object({
   })).describe("List of directly relevant candidates. Leave empty if none found."),
 });
 
-const baseClient = LLMFactory.create("groq", {model: "openai/gpt-oss-120b"});
+const baseClient = LLMFactory.create("google", {model: "gemini-2.5-flash"});
 const agentClient = baseClient.bindTools(toolList);
 
 export const AgentState = Annotation.Root({

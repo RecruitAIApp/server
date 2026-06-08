@@ -17,7 +17,12 @@ export const applicationChatService = {
             $filter: {
               input: "$messages",
               as: "msg",
-              cond: { $ne: ["$$msg.role", "tool"] }
+              cond: {
+                $or: [
+                  { $eq: ["$$msg.role", "human"] },
+                  { $eq: ["$$msg.isFinal", true] }
+                ]
+              }
             }
           }
         }
@@ -38,15 +43,17 @@ export const applicationChatService = {
       chat = await ApplicationChat.create({ userId, jobId, messages: [] });
     }
 
-    chat.messages.push({ role: "human", content });
-    await chat.save();
-
+    // Build history from existing messages BEFORE adding the new one
     const history = chat.messages.map(msg => ({
       role: msg.role,
       content: msg.content,
       ...(msg.tool_calls && { tool_calls: msg.tool_calls }),
       ...(msg.tool_call_id && { tool_call_id: msg.tool_call_id })
     }));
+
+    // Append the new human message to both history (for agent) and chat (for persistence)
+    history.push({ role: "human", content });
+    chat.messages.push({ role: "human", content });
 
     const result = await runHRAgent(jobId, history);
 
@@ -62,7 +69,8 @@ export const applicationChatService = {
     chat.messages.push({
       role: "ai",
       content: result.finalAnswer.answer,
-      candidates: result.finalAnswer.candidates || []
+      candidates: result.finalAnswer.candidates || [],
+      isFinal: true
     });
 
     await chat.save();
