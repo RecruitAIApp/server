@@ -15,6 +15,7 @@ import testRouter from "./src/routes/test.routes.js";
 import adminRouter from "./src/modules/admin/admin.routes.js";
 import recommendationRouter from "./src/modules/recommendations/recommendation.routes.js";
 import hrChatRouter from "./src/modules/application-chat/application-chat.routes.js";
+import analyticsRouter from "./src/modules/analytics/analytics.routes.js";
 
 dotenv.config();
 const app = express();
@@ -60,6 +61,10 @@ app.use("/api/v1/notifications", notificationRouter);
 
 // Admin routes
 app.use("/api/admin", adminRouter);
+
+// Analytics routes
+app.use("/api/analytics", analyticsRouter);
+
 // HR Agent Chat routes
 app.use("/api/v1/hr-chat", hrChatRouter);
 
