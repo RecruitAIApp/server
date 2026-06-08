@@ -65,6 +65,10 @@ const companySchema = new Schema(
       default: "pending",
     },
     ActivationDate: Date,
+    rejectionReason: {
+      type: String,
+      default: null,
+    },
     socialLinks: {
       linkedin: String,
       facebook: String,

@@ -16,17 +16,20 @@ router.get("/stats", adminController.getPlatformStats);
 // GET /api/admin/users
 router.get("/users", adminController.getAllUsers);
 
-// GET /api/admin/employers/pending
-router.get("/employers/pending", adminController.getPendingEmployers);
-
 // PATCH /api/admin/users/:userId/ban
 router.patch("/users/:userId/ban", adminController.banUser);
 
 // PATCH /api/admin/users/:userId/unban
 router.patch("/users/:userId/unban", adminController.unbanUser);
 
-// PATCH /api/admin/employers/:userId/approve
-router.patch("/employers/:userId/approve", adminController.approveEmployer);
+// GET /api/admin/companies/pending
+router.get("/companies/pending", adminController.getPendingCompanies);
+
+// PATCH /api/admin/companies/:companyId/approve
+router.patch("/companies/:companyId/approve", adminController.approveCompany);
+
+// PATCH /api/admin/companies/:companyId/approve
+router.patch("/companies/:companyId/reject", adminController.rejectCompany);
 
 // DELETE /api/admin/jobs/:jobId
 router.delete("/jobs/:jobId", adminController.deleteJob);

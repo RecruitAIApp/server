@@ -126,57 +126,6 @@ export const unbanUserService = async (userId) => {
   return user;
 };
 
-// APPROVE employer (pending_approval → active)
-
-export const approveEmployerService = async (userId) => {
-  const user = await User.findById(userId);
-  if (!user) {
-    const err = new Error("User not found");
-    err.statusCode = 404;
-    throw err;
-  }
-  if (user.role !== "employer") {
-    const err = new Error("User is not an employer");
-    err.statusCode = 400;
-    throw err;
-  }
-  if (user.status !== "pending_approval") {
-    const err = new Error(
-      "This employer is not pending approval — only owners pending approval can be approved",
-    );
-    err.statusCode = 400;
-    throw err;
-  }
-
-  // Check they are an owner not an HR
-  const EmployerProfile = (await import("../auth/employerProfile.model.js"))
-    .default;
-  const profile = await EmployerProfile.findOne({
-    userId: user._id,
-    role: "owner",
-  });
-
-  if (!profile) {
-    const err = new Error(
-      "This employer is an HR member — HR accounts do not require admin approval",
-    );
-    err.statusCode = 400;
-    throw err;
-  }
-
-  user.status = "active";
-  user.isActive = true;
-  await user.save();
-
-  // Activate their company
-  await Company.updateMany(
-    { owner: userId, status: "pending" },
-    { $set: { status: "active", ActivationDate: new Date() } },
-  );
-
-  return user;
-};
-
 // DELETE a job (admin force delete)
 export const deleteJobService = async (jobId) => {
   const job = await Job.findByIdAndDelete(jobId);
@@ -210,7 +159,7 @@ export const getPlatformStatsService = async () => {
     Job.countDocuments({ status: "open" }),
     Application.countDocuments(),
     Company.countDocuments(),
-    User.countDocuments({ role: "employer", status: "pending_approval" }),
+    Company.countDocuments({ status: "pending" }),
     User.countDocuments({ isBanned: true }),
   ]);
 
@@ -220,19 +169,69 @@ export const getPlatformStatsService = async () => {
       candidates: totalCandidates,
       employers: totalEmployers,
       admins: totalAdmins,
-      pendingApproval: pendingEmployers,
       banned: bannedUsers,
     },
+    companies: { total: totalCompanies, pending: pendingCompanies },
     jobs: { total: totalJobs, open: openJobs },
     applications: { total: totalApplications },
     companies: { total: totalCompanies },
   };
 };
 
-// GET pending employers list
-export const getPendingEmployersService = async () => {
-  return await User.find({ role: "employer", status: "pending_approval" })
-    .select("-password -passwordResetToken -passwordResetExpires")
+// Get all companies pending admin approval
+
+export const getPendingCompaniesService = async () => {
+  const companies = await Company.find({ status: "pending" })
+    .populate("owner", "fullName email")
     .sort({ createdAt: -1 })
     .lean();
+  return companies;
+};
+
+// Approve a company after reviewing license
+
+export const approveCompanyService = async (companyId) => {
+  const company = await Company.findById(companyId);
+  if (!company) {
+    const err = new Error("Company not found");
+    err.statusCode = 404;
+    throw err;
+  }
+  if (company.status === "active") {
+    const err = new Error("Company is already approved");
+    err.statusCode = 400;
+    throw err;
+  }
+  if (!company.licenses?.secure_url) {
+    const err = new Error("Company has not uploaded a license yet");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  company.status = "active";
+  company.ActivationDate = new Date();
+  await company.save();
+
+  return company;
+};
+
+// Reject a company after reviewing license
+
+export const rejectCompanyService = async (companyId, reason) => {
+  const company = await Company.findById(companyId);
+  if (!company) {
+    const err = new Error("Company not found");
+    err.statusCode = 404;
+    throw err;
+  }
+  if (company.status !== "pending") {
+    const err = new Error("Only pending companies can be rejected");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  company.rejectionReason = reason || "License rejected by admin";
+  await company.save();
+
+  return company;
 };
