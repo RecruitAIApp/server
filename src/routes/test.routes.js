@@ -114,46 +114,88 @@ router.post("/setup-chat-test", async (req, res) => {
       });
     }
 
-    // 2. Create Company
-    let company = await Company.findOne({ name: "Test Tech Corp" });
-    if (!company) {
-      company = await Company.create({
-        name: "Test Tech Corp",
-        description: "A testing tech company",
+    // 2. Create Companies
+    let techCorp = await Company.findOne({ name: "TechNova Solutions" });
+    if (!techCorp) {
+      techCorp = await Company.create({
+        name: "TechNova Solutions",
+        description: "A leading-edge software house specializing in cloud-native applications and AI integration. We value innovation, transparency, and high-quality code.",
         industry: "Technology",
+        size: "51-200",
+        website: "https://technova.test",
+        location: "Silicon Valley",
         owner: employer._id,
         status: "active",
       });
     }
 
-    // 3. Create Job
-    const jobData = {
-      title: "Senior Node.js Developer",
-      description: "We are looking for a Senior Node.js Developer to join our team. You will be responsible for building robust backend services and integrating with AI modules.",
-      requirements: [
-        "5+ years of experience with Node.js",
-        "Expertise in MongoDB and Mongoose",
-        "Experience with LLMs (OpenAI, Gemini)",
-        "Strong understanding of design patterns",
-      ],
-      salaryRange: {
-        min: 80000,
-        max: 120000,
-        currency: "USD",
-      },
-      location: "San Francisco",
-      jobType: "remote",
-      employmentType: "full-time",
-      experienceLevel: "senior",
-      skills: ["Node.js", "Express", "MongoDB", "AI"],
-      company: company._id,
-      postedBy: employer._id,
-      status: "open",
-    };
+    let creativeInc = await Company.findOne({ name: "Creative Design Hub" });
+    if (!creativeInc) {
+      creativeInc = await Company.create({
+        name: "Creative Design Hub",
+        description: "A world-class design agency crafting beautiful digital experiences. We focus on user-centric design and modern aesthetics.",
+        industry: "Design",
+        size: "11-50",
+        website: "https://creativehub.test",
+        location: "New York",
+        owner: employer._id,
+        status: "active",
+      });
+    }
 
-    let job = await Job.findOne({ title: jobData.title, company: company._id });
-    if (!job) {
-      job = await Job.create(jobData);
+    // 3. Create Diverse Jobs
+    const jobsData = [
+      {
+        title: "Senior Node.js Developer",
+        description: "Join TechNova to build the next generation of scalable backend services. You'll work with Node.js, MongoDB, and advanced AI models to simplify recruitment.",
+        requirements: ["5+ years Node.js", "Deep MongoDB knowledge", "Experience with RAG systems", "Cloud architecture"],
+        salaryRange: { min: 90000, max: 130000, currency: "USD" },
+        location: "Remote",
+        jobType: "remote",
+        employmentType: "full-time",
+        experienceLevel: "senior",
+        skills: ["Node.js", "MongoDB", "AI"],
+        company: techCorp._id,
+        postedBy: employer._id,
+        status: "open",
+      },
+      {
+        title: "Frontend React Architect",
+        description: "Lead our frontend team at TechNova. We use React 19, Tailwind CSS 4, and high-performance UI patterns to build stunning candidate dashboards.",
+        requirements: ["Expertise in React", "Vite & Modern Tooling", "Performance optimization", "Design systems"],
+        salaryRange: { min: 85000, max: 125000, currency: "USD" },
+        location: "Hybrid - San Francisco",
+        jobType: "hybrid",
+        employmentType: "full-time",
+        experienceLevel: "lead",
+        skills: ["React", "TailwindCSS", "TypeScript"],
+        company: techCorp._id,
+        postedBy: employer._id,
+        status: "open",
+      },
+      {
+        title: "UI/UX Product Designer",
+        description: "Join Creative Design Hub to shape the future of recruitment interfaces. You'll be responsible for creating intuitive, premium experiences for millions of users.",
+        requirements: ["Figma Mastery", "User Research", "Interaction Design", "Prototyping"],
+        salaryRange: { min: 70000, max: 110000, currency: "USD" },
+        location: "New York",
+        jobType: "onsite",
+        employmentType: "full-time",
+        experienceLevel: "mid",
+        skills: ["Figma", "UI/UX", "Product Design"],
+        company: creativeInc._id,
+        postedBy: employer._id,
+        status: "open",
+      }
+    ];
+
+    const createdJobs = [];
+    for (const data of jobsData) {
+      let job = await Job.findOne({ title: data.title, company: data.company });
+      if (!job) {
+        job = await Job.create(data);
+      }
+      createdJobs.push(job);
     }
 
     // 4. Create Candidate
@@ -169,16 +211,16 @@ router.post("/setup-chat-test", async (req, res) => {
       });
     }
 
-    // 5. Generate Tokens for Candidate
+    // 5. Generate Tokens
     const { accessToken } = await authService.generateTokens(candidate);
 
     res.status(200).json({
       success: true,
       data: {
         candidateToken: accessToken,
-        jobId: job._id,
+        jobs: createdJobs.map(j => ({ id: j._id, title: j.title })),
         candidateId: candidate._id,
-        message: "Test setup complete. Use candidateToken as Bearer token.",
+        message: "Test setup complete with 3 diverse jobs across 2 companies.",
       },
     });
   } catch (err) {
