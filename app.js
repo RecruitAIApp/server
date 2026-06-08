@@ -17,6 +17,8 @@ import recommendationRouter from "./src/modules/recommendations/recommendation.r
 import hrChatRouter from "./src/modules/application-chat/application-chat.routes.js";
 import analyticsRouter from "./src/modules/analytics/analytics.routes.js";
 import { errorHandler } from "./src/common/middlewares/errorHandler.middleware.js";
+import aiEvalRouter from "./src/modules/ai-eval/aiEval.routes.js";
+
 
 dotenv.config();
 const app = express();
@@ -66,18 +68,14 @@ app.use("/api/admin", adminRouter);
 // Analytics routes
 app.use("/api/analytics", analyticsRouter);
 
+// AI-Eval routes
+app.use("/api/ai-eval", aiEvalRouter);
+
 // HR Agent Chat routes
 app.use("/api/v1/hr-chat", hrChatRouter);
 
 // Test routes (for development/testing)
 app.use("/api/test", testRouter);
-
-app.use((req, res) => {
-  res.status(404).json({
-    status: "error",
-    message: "Route not found",
-  });
-});
 
 app.use(errorHandler);
 export default app;
