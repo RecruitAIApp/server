@@ -237,6 +237,35 @@ export const addApplicationNote = async (applicationId, noteData, user) => {
   return await applicationRepo.addNoteAndRating(applicationId, user.id, content, ratingScore);
 };
 
+export const updateApplicationNote = async (applicationId, noteId, noteData, user) => {
+  const application = await applicationRepo.findByIdOrThrow(applicationId);
+
+  const profile = await EmployerProfile.findOne({
+    userId: user.id,
+    companyId: application.companyId,
+  });
+  if (!profile) {
+    throw new AppError("Forbidden: You do not have permission to edit comments on this application", 403);
+  }
+
+  const { content, ratingScore } = noteData;
+  return await applicationRepo.updateNote(applicationId, noteId, user.id, content, ratingScore);
+};
+
+export const deleteApplicationNote = async (applicationId, noteId, user) => {
+  const application = await applicationRepo.findByIdOrThrow(applicationId);
+
+  const profile = await EmployerProfile.findOne({
+    userId: user.id,
+    companyId: application.companyId,
+  });
+  if (!profile) {
+    throw new AppError("Forbidden: You do not have permission to delete comments on this application", 403);
+  }
+
+  return await applicationRepo.deleteNote(applicationId, noteId, user.id);
+};
+
 /**
  * Gets all applications submitted by a candidate.
  * @param {string} candidateId 

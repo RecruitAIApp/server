@@ -167,6 +167,7 @@ export const addNoteAndRating = async (applicationId, actorId, noteContent, rati
     application.notes.push({
       authorId: actorId,
       content: noteContent,
+      ratingScore: ratingScore,
       createdAt: new Date()
     });
   }
@@ -196,6 +197,84 @@ export const addNoteAndRating = async (applicationId, actorId, noteContent, rati
     application.internalRating.average = totalVotes > 0 ? sumVotes / totalVotes : 0;
   }
 
+  return await application.save();
+};
+
+/**
+ * Updates a note and recalculates the rating if changed.
+ */
+export const updateNote = async (applicationId, noteId, actorId, newContent, newRating) => {
+  const application = await Application.findById(applicationId);
+  if (!application) {
+    throw new AppError("Application not found", 404);
+  }
+
+  const note = application.notes.id(noteId);
+  if (!note) {
+    throw new AppError("Note not found", 404);
+  }
+
+  if (note.authorId.toString() !== actorId.toString()) {
+    throw new AppError("Unauthorized to edit this note", 403);
+  }
+
+  if (newContent !== undefined) {
+    note.content = newContent;
+  }
+  if (newRating !== undefined) {
+    note.ratingScore = newRating;
+
+    // Also update recruiter's vote in internalRating.votes
+    if (!application.internalRating) {
+      application.internalRating = { average: 0, votes: [] };
+    }
+    const voteIndex = application.internalRating.votes.findIndex(
+      (v) => v.recruiterId.toString() === actorId.toString()
+    );
+    if (voteIndex > -1) {
+      application.internalRating.votes[voteIndex].score = newRating;
+    } else {
+      application.internalRating.votes.push({ recruiterId: actorId, score: newRating });
+    }
+    const totalVotes = application.internalRating.votes.length;
+    const sumVotes = application.internalRating.votes.reduce((sum, v) => sum + v.score, 0);
+    application.internalRating.average = totalVotes > 0 ? sumVotes / totalVotes : 0;
+  }
+
+  return await application.save();
+};
+
+/**
+ * Deletes a note and recalculates/removes recruiter rating if applicable.
+ */
+export const deleteNote = async (applicationId, noteId, actorId) => {
+  const application = await Application.findById(applicationId);
+  if (!application) {
+    throw new AppError("Application not found", 404);
+  }
+
+  const note = application.notes.id(noteId);
+  if (!note) {
+    throw new AppError("Note not found", 404);
+  }
+
+  if (note.authorId.toString() !== actorId.toString()) {
+    throw new AppError("Unauthorized to delete this note", 403);
+  }
+
+  // Remove the recruiter's rating vote associated with this note if applicable
+  if (note.ratingScore !== undefined) {
+    if (application.internalRating && application.internalRating.votes) {
+      application.internalRating.votes = application.internalRating.votes.filter(
+        (v) => v.recruiterId.toString() !== actorId.toString()
+      );
+      const totalVotes = application.internalRating.votes.length;
+      const sumVotes = application.internalRating.votes.reduce((sum, v) => sum + v.score, 0);
+      application.internalRating.average = totalVotes > 0 ? sumVotes / totalVotes : 0;
+    }
+  }
+
+  application.notes.pull(noteId);
   return await application.save();
 };
 
