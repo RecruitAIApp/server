@@ -6,6 +6,8 @@ import { AppError } from '../../utils/error.js';
 import EmployerProfile from '../auth/employerProfile.model.js';
 import { enqueueFeedback } from './queues/feedback.queue.js';
 import CandidateProfile from '../auth/candidateProfile.model.js';
+import Job from '../jobs/job.model.js';
+import notificationService from '../notifications/notification.service.js';
 
 /**
  * This is the main logic for applying to a job.
@@ -91,6 +93,15 @@ export const updateApplicationStage = async (applicationId, stageData) => {
 
   const currentApplication = await applicationRepo.findByIdOrThrow(applicationId);
 
+  // IDOR Mitigation: Verify recruiter belongs to the application company
+  const profile = await EmployerProfile.findOne({
+    userId: actorId,
+    companyId: currentApplication.companyId
+  });
+  if (!profile) {
+    throw new AppError("Forbidden: You do not have permission to modify this application", 403);
+  }
+
   const VALID_STAGES = ['applied', 'shortlisted', 'interview', 'offer', 'hired', 'rejected'];
   if (!VALID_STAGES.includes(stage.key)) {
     throw new AppError('Invalid stage', 400);
@@ -118,6 +129,35 @@ export const updateApplicationStage = async (applicationId, stageData) => {
     } catch (err) {
       console.error(`[Service] Failed to enqueue stage feedback/notification:`, err.message);
     }
+  }
+
+  // Real-time status update notification
+  try {
+    const stageNameMap = {
+      applied: "Applied",
+      shortlisted: "Shortlisted",
+      interview: "Interview",
+      offer: "Offer Sent",
+      hired: "Hired",
+      rejected: "Rejected"
+    };
+    const stageName = stageNameMap[stage.key] || stage.key;
+
+    const jobDetails = await Job.findById(currentApplication.jobId);
+    const jobTitle = jobDetails ? jobDetails.title : "your job application";
+
+    await notificationService.notify(currentApplication.candidateId, {
+      type: "application_status",
+      title: "Application Status Updated",
+      message: `Your application status for "${jobTitle}" has been updated to "${stageName}".`,
+      data: {
+        applicationId: currentApplication._id.toString(),
+        stage: stage.key
+      }
+    });
+    console.log(`[Service] Real-time notification sent to candidate ${currentApplication.candidateId} for application ${applicationId}`);
+  } catch (notifErr) {
+    console.error(`[Service] Failed to send real-time status notification to candidate:`, notifErr.message);
   }
 
   return updatedApplication;
