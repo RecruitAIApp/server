@@ -138,6 +138,46 @@ export const deleteJobService = async (jobId) => {
 };
 
 // GET platform overview stats
+// export const getPlatformStatsService = async () => {
+//   const [
+//     totalUsers,
+//     totalCandidates,
+//     totalEmployers,
+//     totalAdmins,
+//     totalJobs,
+//     openJobs,
+//     totalApplications,
+//     totalCompanies,
+//     pendingEmployers,
+//     bannedUsers,
+//   ] = await Promise.all([
+//     User.countDocuments(),
+//     User.countDocuments({ role: "candidate" }),
+//     User.countDocuments({ role: "employer" }),
+//     User.countDocuments({ role: "admin" }),
+//     Job.countDocuments(),
+//     Job.countDocuments({ status: "open" }),
+//     Application.countDocuments(),
+//     Company.countDocuments(),
+//     Company.countDocuments({ status: "pending" }),
+//     User.countDocuments({ isBanned: true }),
+//   ]);
+
+//   return {
+//     users: {
+//       total: totalUsers,
+//       candidates: totalCandidates,
+//       employers: totalEmployers,
+//       admins: totalAdmins,
+//       banned: bannedUsers,
+//     },
+//     companies: { total: totalCompanies, pending: pendingCompanies },
+//     jobs: { total: totalJobs, open: openJobs },
+//     applications: { total: totalApplications },
+//     companies: { total: totalCompanies },
+//   };
+// };
+
 export const getPlatformStatsService = async () => {
   const [
     totalUsers,
@@ -148,7 +188,7 @@ export const getPlatformStatsService = async () => {
     openJobs,
     totalApplications,
     totalCompanies,
-    pendingEmployers,
+    pendingCompanies,
     bannedUsers,
   ] = await Promise.all([
     User.countDocuments(),
@@ -174,7 +214,6 @@ export const getPlatformStatsService = async () => {
     companies: { total: totalCompanies, pending: pendingCompanies },
     jobs: { total: totalJobs, open: openJobs },
     applications: { total: totalApplications },
-    companies: { total: totalCompanies },
   };
 };
 
