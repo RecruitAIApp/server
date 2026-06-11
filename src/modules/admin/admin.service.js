@@ -7,11 +7,12 @@ import EmployerProfile from "../auth/employerProfile.model.js";
 
 // GET all users with pagination + filters
 export const getAllUsersService = async (query) => {
-  const { page = 1, limit = 10, role, status, search } = query;
+  const { page = 1, limit = 10, role, status, search, isBanned } = query;
   const filter = {};
 
   if (role) filter.role = role;
   if (status) filter.status = status;
+  if (isBanned === "true") filter.isBanned = true;
   if (search) {
     filter.$or = [
       { email: { $regex: search, $options: "i" } },
@@ -56,12 +57,10 @@ export const banUserService = async (userId, reason) => {
     throw err;
   }
 
-  // Ban the user
   user.isBanned = true;
   user.status = "suspended";
   await user.save();
 
-  // If employer owner — deactivate their company and close their jobs
   if (user.role === "employer") {
     const profile = await EmployerProfile.findOne({
       userId: user._id,
@@ -69,12 +68,10 @@ export const banUserService = async (userId, reason) => {
     });
 
     if (profile && profile.companyId) {
-      // Deactivate the company
       await Company.findByIdAndUpdate(profile.companyId, {
         $set: { status: "inactive" },
       });
 
-      // Close all open jobs under that company
       await Job.updateMany(
         { company: profile.companyId, status: "open" },
         { $set: { status: "closed" } },
@@ -99,12 +96,10 @@ export const unbanUserService = async (userId) => {
     throw err;
   }
 
-  // Unban the user
   user.isBanned = false;
   user.status = "active";
   await user.save();
 
-  // If employer owner — reactivate their company and reopen closed jobs
   if (user.role === "employer") {
     const profile = await EmployerProfile.findOne({
       userId: user._id,
@@ -138,46 +133,6 @@ export const deleteJobService = async (jobId) => {
 };
 
 // GET platform overview stats
-// export const getPlatformStatsService = async () => {
-//   const [
-//     totalUsers,
-//     totalCandidates,
-//     totalEmployers,
-//     totalAdmins,
-//     totalJobs,
-//     openJobs,
-//     totalApplications,
-//     totalCompanies,
-//     pendingEmployers,
-//     bannedUsers,
-//   ] = await Promise.all([
-//     User.countDocuments(),
-//     User.countDocuments({ role: "candidate" }),
-//     User.countDocuments({ role: "employer" }),
-//     User.countDocuments({ role: "admin" }),
-//     Job.countDocuments(),
-//     Job.countDocuments({ status: "open" }),
-//     Application.countDocuments(),
-//     Company.countDocuments(),
-//     Company.countDocuments({ status: "pending" }),
-//     User.countDocuments({ isBanned: true }),
-//   ]);
-
-//   return {
-//     users: {
-//       total: totalUsers,
-//       candidates: totalCandidates,
-//       employers: totalEmployers,
-//       admins: totalAdmins,
-//       banned: bannedUsers,
-//     },
-//     companies: { total: totalCompanies, pending: pendingCompanies },
-//     jobs: { total: totalJobs, open: openJobs },
-//     applications: { total: totalApplications },
-//     companies: { total: totalCompanies },
-//   };
-// };
-
 export const getPlatformStatsService = async () => {
   const [
     totalUsers,
@@ -217,8 +172,7 @@ export const getPlatformStatsService = async () => {
   };
 };
 
-// Get all companies pending admin approval
-
+// GET all companies pending admin approval
 export const getPendingCompaniesService = async () => {
   const companies = await Company.find({ status: "pending" })
     .populate("owner", "fullName email")
@@ -227,8 +181,7 @@ export const getPendingCompaniesService = async () => {
   return companies;
 };
 
-// Approve a company after reviewing license
-
+// APPROVE a company after reviewing license
 export const approveCompanyService = async (companyId) => {
   const company = await Company.findById(companyId);
   if (!company) {
@@ -241,21 +194,22 @@ export const approveCompanyService = async (companyId) => {
     err.statusCode = 400;
     throw err;
   }
-  if (!company.licenses?.secure_url) {
+  if (!company.licenses || !company.licenses.secure_url) {
     const err = new Error("Company has not uploaded a license yet");
     err.statusCode = 400;
     throw err;
   }
 
-  company.status = "active";
-  company.ActivationDate = new Date();
-  await company.save();
+  const updated = await Company.findByIdAndUpdate(
+    companyId,
+    { $set: { status: "active", ActivationDate: new Date() } },
+    { new: true },
+  );
 
-  return company;
+  return updated;
 };
 
-// Reject a company after reviewing license
-
+// REJECT a company after reviewing license
 export const rejectCompanyService = async (companyId, reason) => {
   const company = await Company.findById(companyId);
   if (!company) {
@@ -269,8 +223,16 @@ export const rejectCompanyService = async (companyId, reason) => {
     throw err;
   }
 
-  company.rejectionReason = reason || "License rejected by admin";
-  await company.save();
+  const updated = await Company.findByIdAndUpdate(
+    companyId,
+    {
+      $set: {
+        status: "rejected",
+        rejectionReason: reason || "License rejected by admin",
+      },
+    },
+    { new: true },
+  );
 
-  return company;
+  return updated;
 };
