@@ -8,6 +8,7 @@ import { enqueueFeedback } from './queues/feedback.queue.js';
 import CandidateProfile from '../auth/candidateProfile.model.js';
 import Job from '../jobs/job.model.js';
 import notificationService from '../notifications/notification.service.js';
+import { QueueService } from '../../common/services/queue.service.js';
 
 /**
  * This is the main logic for applying to a job.
@@ -128,6 +129,18 @@ export const updateApplicationStage = async (applicationId, stageData) => {
       console.log(`[Service] Successfully enqueued stage feedback/notification for application ${applicationId} (Stage: ${stage.key})`);
     } catch (err) {
       console.error(`[Service] Failed to enqueue stage feedback/notification:`, err.message);
+    }
+  }
+
+  if (stage.key.toLowerCase() === 'interview') {
+    try {
+      await QueueService.addJob("background-tasks", "GENERATE_RECOMMENDATIONS", {
+        type: "GENERATE_RECOMMENDATIONS",
+        data: { applicationId: applicationId.toString() },
+      });
+      console.log(`[Service] Automatically enqueued AI interview recommendations for application ${applicationId}`);
+    } catch (err) {
+      console.error(`[Service] Failed to automatically enqueue AI recommendations:`, err.message);
     }
   }
 

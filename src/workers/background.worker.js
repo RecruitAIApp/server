@@ -5,7 +5,7 @@ import { createLogger } from "../utils/logger.js";
 
 import { handleEmbedding, handleDeleteEmbedding } from "./handlers/embedding.handler.js";
 import { handleCVParse } from "./handlers/cv-parse.handler.js";
-import { handleResumeEmbedding } from "./handlers/recommendation.handler.js";
+import { handleResumeEmbedding, handleGenerateRecommendations } from "./handlers/recommendation.handler.js";
 
 await connectDB();
 
@@ -19,6 +19,7 @@ const WORKER_CONFIG = {
   "EMBED_JOB": handleEmbedding,
   "DELETE_EMBEDDING": handleDeleteEmbedding,
   "CV_PARSE": handleCVParse,
+  "GENERATE_RECOMMENDATIONS": handleGenerateRecommendations,
 };
 
 

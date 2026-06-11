@@ -1,5 +1,6 @@
 import { VectorStoreService } from "../../modules/vectorstore/vectorstore.service.js";
 import { createLogger } from "../../utils/logger.js";
+import { runAgentAndSave } from "../../modules/interviewRecommendations/interviewRecommendation.service.js";
 
 const logger = createLogger("recommendation-handler");
 
@@ -35,5 +36,27 @@ export async function handleResumeEmbedding(data) {
   } catch (error) {
     logger.error(`Error saving candidate embedding for profileId ${metadata.profileId}: ${error.message}`, error);
     throw error; // Rethrow to let BullMQ handle attempts/retries
+  }
+}
+
+/**
+ * BullMQ job processor for GENERATE_RECOMMENDATIONS.
+ * Runs LangGraph to generate interview recommendations, saves to MongoDB, and caches in Redis.
+ * 
+ * @param {object} data - Job data object containing applicationId
+ */
+export async function handleGenerateRecommendations(data) {
+  const { applicationId } = data;
+  if (!applicationId) {
+    throw new Error("Missing applicationId in recommendations generation job");
+  }
+
+  logger.info(`Starting AI Interview Recommendation generation for application: ${applicationId}`);
+  try {
+    await runAgentAndSave(applicationId);
+    logger.info(`Successfully finished AI Interview Recommendation for application: ${applicationId}`);
+  } catch (error) {
+    logger.error(`Error generating AI recommendations for application ${applicationId}: ${error.message}`, error);
+    throw error;
   }
 }

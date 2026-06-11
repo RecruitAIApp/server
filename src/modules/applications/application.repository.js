@@ -296,5 +296,6 @@ export const findDetailsById = async (applicationId) => {
   return await Application.findById(applicationId)
     .populate({ path: "candidateId", select: "name email profile" })
     .populate({ path: "jobId", select: "title location jobType employmentType" })
-    .populate({ path: "companyId", select: "name logo website" });
+    .populate({ path: "companyId", select: "name logo website" })
+    .populate({ path: "interviewIds" });
 };

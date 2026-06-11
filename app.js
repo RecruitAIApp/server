@@ -18,6 +18,8 @@ import hrChatRouter from "./src/modules/application-chat/application-chat.routes
 import analyticsRouter from "./src/modules/analytics/analytics.routes.js";
 import { errorHandler } from "./src/common/middlewares/errorHandler.middleware.js";
 import aiEvalRouter from "./src/modules/ai-eval/aiEval.routes.js";
+import interviewRouter from "./src/modules/interviews/interview.routes.js";
+import interviewRecommendationRouter from "./src/modules/interviewRecommendations/interviewRecommendation.routes.js";
 
 
 dotenv.config();
@@ -70,6 +72,10 @@ app.use("/api/analytics", analyticsRouter);
 
 // AI-Eval routes
 app.use("/api/ai-eval", aiEvalRouter);
+
+// Interview routes
+app.use("/api/interviews", interviewRouter);
+app.use("/api/interview-recommendations", interviewRecommendationRouter);
 
 // HR Agent Chat routes
 app.use("/api/v1/hr-chat", hrChatRouter);
