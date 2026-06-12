@@ -12,6 +12,9 @@ const PORT = process.env.PORT || 5001;
 
 
 const server = http.createServer(app);
+server.timeout = 120000; 
+server.headersTimeout = 120000; 
+
 initSocket(server);
 
 const startServer = async () => {
