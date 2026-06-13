@@ -1,0 +1,98 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: naqla_redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+  
+  backend:
+    build: ./server
+    container_name: naqla_backend
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CLIENT_URL=http://localhost:8080
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: always
+
+  worker-background:
+    build: ./server
+    container_name: naqla_worker_background
+    command: npm run worker
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CLIENT_URL=http://localhost:8080
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: always
+
+  worker-cv:
+    build: ./server
+    container_name: naqla_worker_cv
+    command: npm run worker:cv
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CLIENT_URL=http://localhost:8080
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: always
+
+  worker-automation:
+    build: ./server
+    container_name: naqla_worker_automation
+    command: npm run worker:automation
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CLIENT_URL=http://localhost:8080
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: always
+
+  frontend:
+    build:
+      context: ./client
+      args:
+        - VITE_API_BASE_URL=http://localhost:5000/api
+    container_name: naqla_frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    restart: always
+
+volumes:
+  redis_data:
