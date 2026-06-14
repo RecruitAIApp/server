@@ -17,7 +17,7 @@ services:
       start_period: 5s
   
   backend:
-    image: ${DOCKER_IMAGE:-your-docker-user/recruit-ai-backend:latest}
+    image: ${DOCKER_IMAGE:-mohamedwael2/recruit-ai-backend:latest}
     container_name: naqla_backend_deploy
     ports:
       - "5000:5000"
@@ -35,7 +35,7 @@ services:
     restart: always
 
   worker-background:
-    image: ${DOCKER_IMAGE:-your-docker-user/recruit-ai-backend:latest}
+    image: ${DOCKER_IMAGE:-mohamedwael2/recruit-ai-backend:latest}
     container_name: naqla_worker_background_deploy
     command: npm run worker
     env_file:
@@ -51,7 +51,7 @@ services:
     restart: always
 
   worker-cv:
-    image: ${DOCKER_IMAGE:-your-docker-user/recruit-ai-backend:latest}
+    image: ${DOCKER_IMAGE:-mohamedwael2/recruit-ai-backend:latest}
     container_name: naqla_worker_cv_deploy
     command: npm run worker:cv
     env_file:
@@ -67,7 +67,7 @@ services:
     restart: always
 
   worker-automation:
-    image: ${DOCKER_IMAGE:-your-docker-user/recruit-ai-backend:latest}
+    image: ${DOCKER_IMAGE:-mohamedwael2/recruit-ai-backend:latest}
     container_name: naqla_worker_automation_deploy
     command: npm run worker:automation
     env_file:
