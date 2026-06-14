@@ -1,0 +1,44 @@
+name: Deploy Backend to GCP VM
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  IMAGE_NAME: mohamedwael2/recruit-ai-backend
+  IMAGE_TAG: latest
+  DOCKER_IMAGE: mohamedwael2/recruit-ai-backend:latest
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+
+      - name: Build Docker image
+        run: docker build -t $IMAGE_NAME:$IMAGE_TAG .
+
+      - name: Push Docker image
+        run: docker push $IMAGE_NAME:$IMAGE_TAG
+
+      - name: Deploy to VM via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.GCP_VM_HOST }}
+          username: ${{ secrets.GCP_VM_USER }}
+          key: ${{ secrets.GCP_SSH_KEY }}
+          script: |
+            set -e
+
+            cd /home/mohame171819/server
+
+            export DOCKER_IMAGE=mohamedwael2/recruit-ai-backend:latest
+
+            docker compose -f docker-compose.deploy.yml pull
+            docker compose -f docker-compose.deploy.yml up -d --force-recreate
