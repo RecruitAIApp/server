@@ -7,6 +7,14 @@ import { createLogger } from "../../utils/logger.js";
 
 const logger = createLogger("recommendation-service");
 
+function normalizeSkill(skill) {
+  if (!skill) return "";
+  return skill
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]/g, ""); // e.g. "node.js" -> "nodejs", "rest api" -> "restapi", "react" -> "react"
+}
+
 /**
  * Service to retrieve semantic job recommendations for a candidate.
  * 
@@ -39,6 +47,17 @@ export async function getRecommendationsForCandidate(userId, options = {}) {
     logger.warn(`Profile not found for candidate user: ${userId}`);
     return { recommendations: [] };
   }
+
+  // Extract all candidate skills (from both profile.skills and resume.parsedData.skills)
+  const candidateSkills = profile.skills || [];
+  const resumeSkills = profile.resume?.parsedData?.skills || [];
+  const mergedCandidateSkills = Array.from(new Set([...candidateSkills, ...resumeSkills]));
+  const candidateSkillsNormalized = mergedCandidateSkills.map(normalizeSkill).filter(Boolean);
+
+  logger.info(`Candidate ${userId} profile skills: ${JSON.stringify(candidateSkills)}`);
+  logger.info(`Candidate ${userId} resume parsed skills: ${JSON.stringify(resumeSkills)}`);
+  logger.info(`Candidate ${userId} merged skills: ${JSON.stringify(mergedCandidateSkills)}`);
+  logger.info(`Candidate ${userId} normalized skills: ${JSON.stringify(candidateSkillsNormalized)}`);
 
   // 2. Resolve Candidate Vector (Try finding existing vector, fallback to generating and saving once)
   let candidateVector = null;
@@ -93,15 +112,77 @@ export async function getRecommendationsForCandidate(userId, options = {}) {
       "jobs",
       { type: "job" } // Safe filter that exists on all job vectors
     );
-    logger.info(`Successfully retrieved ${vectorResults.length} matching jobs from Vector Store.`);
+    logger.info(`Successfully retrieved ${vectorResults?.length || 0} matching jobs from Vector Store.`);
   } catch (error) {
     logger.error(`Error searching vector store by vector for candidate: ${error.message}`);
-    throw error;
+    // Do not throw; fall back to skills-based matching below
+    vectorResults = [];
   }
 
+  let recommendations = [];
+
+  // Fallback to Skills-based matching if Vector Store returns empty
   if (!vectorResults || vectorResults.length === 0) {
-    logger.info("No semantic job matches found in Vector Store.");
-    return { recommendations: [] };
+    logger.info("No semantic job matches found in Vector Store. Falling back to skills-based matching.");
+    
+    // Fetch all open jobs
+    const dbQuery = { status: "open" };
+    if (location) {
+      dbQuery.location = { $regex: new RegExp(location.trim(), "i") };
+    }
+    if (employmentType) {
+      dbQuery.employmentType = employmentType.trim();
+    }
+    if (seniority) {
+      dbQuery.experienceLevel = seniority.trim();
+    }
+
+    logger.info(`Querying DB for fallback matching jobs: ${JSON.stringify(dbQuery)}`);
+    const allOpenJobs = await Job.find(dbQuery).populate("company", "name logo industry description");
+    logger.info(`Retrieved ${allOpenJobs.length} open jobs from database for skills comparison.`);
+
+    const matchedJobs = [];
+    for (const job of allOpenJobs) {
+      const jobSkills = job.skills || [];
+      const jobReqs = job.requirements || [];
+      const mergedJobSkills = Array.from(new Set([...jobSkills, ...jobReqs]));
+      const jobSkillsNormalized = mergedJobSkills.map(normalizeSkill).filter(Boolean);
+
+      logger.info(`Evaluating Job "${job.title}" (${job._id}) | Skills: ${JSON.stringify(jobSkills)} | Reqs: ${JSON.stringify(jobReqs)}`);
+
+      const overlapSkills = [];
+      const matchedDebug = [];
+      for (const candSkill of candidateSkillsNormalized) {
+        const matchingJobSkill = jobSkillsNormalized.find(jobSkill => 
+          jobSkill === candSkill || jobSkill.includes(candSkill) || candSkill.includes(jobSkill)
+        );
+        if (matchingJobSkill) {
+          overlapSkills.push(candSkill);
+          matchedDebug.push(`${candSkill} -> ${matchingJobSkill}`);
+        }
+      }
+
+      if (overlapSkills.length > 0) {
+        // Compute score based on ratio of overlap to total job skills required
+        const score = Math.min(100, Math.max(30, Math.round((overlapSkills.length / Math.max(jobSkillsNormalized.length, 1)) * 100)));
+        logger.info(`Job MATCH: "${job.title}" | Score: ${score}% | Overlaps: ${JSON.stringify(matchedDebug)}`);
+        matchedJobs.push({
+          job,
+          score,
+          reason: `Matched ${overlapSkills.length} core skills: ${overlapSkills.join(", ")}.`
+        });
+      } else {
+        logger.info(`Job REJECT: "${job.title}" | No skill overlap with candidate.`);
+      }
+    }
+
+    recommendations = matchedJobs.sort((a, b) => b.score - a.score);
+    logger.info(`Final fallback recommendations count: ${recommendations.length}`);
+    logger.info(`Final recommendation array: ${JSON.stringify(recommendations.map(r => ({ jobTitle: r.job.title, score: r.score })))}`);
+
+    return {
+      recommendations: recommendations.slice(0, limit)
+    };
   }
 
   const jobIds = vectorResults.map(res => res.metadata.jobId).filter(Boolean);
@@ -123,12 +204,21 @@ export async function getRecommendationsForCandidate(userId, options = {}) {
     dbQuery.experienceLevel = seniority.trim();
   }
 
-  logger.info(`Querying database for job IDs and applying filters`);
+  logger.info(`Querying database for job IDs and applying filters: ${JSON.stringify(dbQuery)}`);
   const jobs = await Job.find(dbQuery).populate("company", "name logo industry description");
+
+  logger.info(`Database filtering completed. Remaining jobs count: ${jobs.length}`);
+
+  // Log rejected jobs from the vector matches
+  const foundJobIds = jobs.map(j => j._id.toString());
+  const rejectedJobIds = jobIds.filter(id => !foundJobIds.includes(id));
+  if (rejectedJobIds.length > 0) {
+    logger.info(`Rejected ${rejectedJobIds.length} vector matched jobs because they were closed, deleted, or did not match filters: ${JSON.stringify(rejectedJobIds)}`);
+  }
 
   // 5. Score & Sort
   // Map similarity scores back to DB results and sort by score descending
-  let recommendations = jobs.map(job => {
+  recommendations = jobs.map(job => {
     const vectorMatch = vectorResults.find(v => v.metadata.jobId === job._id.toString());
     
     // Convert cosine score (usually 0.0 - 1.0) to percentage scale (0 - 100)
@@ -138,6 +228,8 @@ export async function getRecommendationsForCandidate(userId, options = {}) {
       // Clamp between 0 and 100
       score = Math.max(0, Math.min(100, score));
     }
+
+    logger.info(`Job MATCH (Vector): "${job.title}" | Score: ${score}%`);
 
     return {
       job,
@@ -153,23 +245,29 @@ export async function getRecommendationsForCandidate(userId, options = {}) {
     const remaining = recommendations.slice(topCount);
 
     logger.info(`Sending top ${topForRerank.length} jobs for LLM re-ranking`);
-    const rerankedData = await rerankJobs(profile, topForRerank.map(r => r.job));
+    try {
+      const rerankedData = await rerankJobs(profile, topForRerank.map(r => r.job));
 
-    const rerankedRecommendations = topForRerank.map(rec => {
-      const llmResult = rerankedData.find(item => item.jobId === rec.job._id.toString());
-      if (llmResult) {
-        return {
-          job: rec.job,
-          score: llmResult.score,
-          reason: llmResult.reason
-        };
-      }
-      return rec; // Fallback to vector score if LLM fails or skips
-    });
+      const rerankedRecommendations = topForRerank.map(rec => {
+        const llmResult = rerankedData.find(item => item.jobId === rec.job._id.toString());
+        if (llmResult) {
+          return {
+            job: rec.job,
+            score: llmResult.score,
+            reason: llmResult.reason
+          };
+        }
+        return rec; // Fallback to vector score if LLM fails or skips
+      });
 
-    // Re-sort reranked items by score and combine with the rest
-    recommendations = [...rerankedRecommendations, ...remaining].sort((a, b) => b.score - a.score);
+      // Re-sort reranked items by score and combine with the rest
+      recommendations = [...rerankedRecommendations, ...remaining].sort((a, b) => b.score - a.score);
+    } catch (err) {
+      logger.error(`Error during LLM re-ranking: ${err.message}. Using vector/fallback scores.`);
+    }
   }
+
+  logger.info(`Final recommendation array: ${JSON.stringify(recommendations.map(r => ({ jobTitle: r.job.title, score: r.score })))}`);
 
   // Slice final list to requested limit
   return {
