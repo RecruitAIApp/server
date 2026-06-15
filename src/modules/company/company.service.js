@@ -353,7 +353,7 @@ export const inviteHRService = async ({
 
     const emailSent = await sendEmail({
       to: normalizedEmail,
-      subject: `You've been added to ${company.name} on MASAR Recruiter`,
+      subject: `You've been added to ${company.name} on Naqla Recruiter`,
       html,
     });
 
@@ -423,7 +423,7 @@ export const inviteHRService = async ({
 
   const emailSent = await sendEmail({
     to: normalizedEmail,
-    subject: `Join ${company.name} on MASAR Recruiter`,
+    subject: `Join ${company.name} on Naqla Recruiter`,
     html,
   });
 

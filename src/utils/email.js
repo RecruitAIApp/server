@@ -1,6 +1,11 @@
 import nodemailer from "nodemailer";
 
 export const sendEmail = async ({ to, subject, html }) => {
+  if (process.env.NODE_ENV === "test") {
+    console.log("Test mode: Skipping real email send to", to);
+    return true;
+  }
+
   try {
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
@@ -14,7 +19,7 @@ export const sendEmail = async ({ to, subject, html }) => {
     });
 
     const info = await transporter.sendMail({
-      from: `"MASAR Recruiter" <${[process.env.EMAIL_USER]}> `,
+      from: `"Naqla Recruiter" <${[process.env.EMAIL_USER]}> `,
       to,
       subject,
       html,

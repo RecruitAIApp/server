@@ -54,7 +54,7 @@ export const sendInterviewScheduledEmail = async ({
   notes,
 }) => {
   const { dateFormatted, timeFormatted } = formatDateTime(interviewDate, timezone);
-  const locationOrLink = interviewType === "online" 
+  const locationOrLink = interviewType === "online"
     ? `<p><strong>Meeting Link:</strong> <a href="${meetingLink}" target="_blank" style="color: #4f46e5; text-decoration: underline;">Join Interview</a></p>`
     : `<p><strong>Location:</strong> ${location || "To be decided"}</p>`;
 
@@ -103,7 +103,7 @@ export const sendInterviewRescheduledEmail = async ({
   notes,
 }) => {
   const { dateFormatted, timeFormatted } = formatDateTime(interviewDate, timezone);
-  const locationOrLink = interviewType === "online" 
+  const locationOrLink = interviewType === "online"
     ? `<p><strong>Meeting Link:</strong> <a href="${meetingLink}" target="_blank" style="color: #f59e0b; text-decoration: underline;">Join Interview</a></p>`
     : `<p><strong>Location:</strong> ${location || "To be decided"}</p>`;
 
@@ -187,7 +187,7 @@ export const sendPrepGuideReadyEmail = async ({
       </div>
       
       <p>Best of luck with your preparation!</p>
-      <p>Best regards,<br/><strong>MASAR AI Team</strong></p>
+      <p>Best regards,<br/><strong>Naqla AI Team</strong></p>
     </div>
   `;
 

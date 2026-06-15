@@ -37,6 +37,15 @@ export const ownerCompanyOnboardSchema = Joi.object({
   website: Joi.string().uri().optional().allow(""),
 });
 
+// Forgot password payload validations
+export const forgotPasswordSchema = Joi.object({
+  email: Joi.string().email().required().messages({
+    "string.email": "Please provide a valid email address.",
+    "any.required": "Email address is required.",
+    "string.empty": "Email address is required.",
+  }),
+});
+
 export const refreshSchema = Joi.object({
   refreshToken: Joi.string().required().messages({
     "any.required": "Refresh token is required.",

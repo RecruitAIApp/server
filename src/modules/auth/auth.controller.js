@@ -169,13 +169,7 @@ class AuthController {
 
   async forgotPassword(req, res) {
     try {
-      const { email } = req.body;
-      if (!email) {
-        return res.status(400).json({
-          success: false,
-          message: "Email address is required.",
-        });
-      }
+      const { email } = req.validatedBody;
 
       const origin =
         req.headers.origin || req.headers.referer || "http://localhost:5173";
@@ -186,7 +180,7 @@ class AuthController {
         message: result.message,
       });
     } catch (err) {
-      return res.status(err.status || 400).json({
+      return res.status(err.status || 500).json({
         success: false,
         message: err.message || "Forgot password request failed.",
       });

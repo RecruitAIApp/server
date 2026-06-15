@@ -8,6 +8,7 @@ import {
   ownerCompanyOnboardSchema,
   validateBody,
   acceptHRInviteSchema,
+  forgotPasswordSchema,
 } from "./auth.validation.js";
 import {
   authenticate,
@@ -55,7 +56,7 @@ router.get("/me", authenticate, authController.getMe);
 router.post("/logout", authenticate, authController.logout);
 
 // POST /api/auth/forgot-password
-router.post("/forgot-password", authController.forgotPassword);
+router.post("/forgot-password", validateBody(forgotPasswordSchema), authController.forgotPassword);
 
 // POST /api/auth/reset-password
 router.post("/reset-password", authController.resetPassword);

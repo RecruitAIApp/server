@@ -6,6 +6,9 @@ import { sendEmail } from "../../utils/email.js";
 import { generateResetToken, hashResetToken } from "../../utils/hash.js";
 import EmployerProfile from "./employerProfile.model.js";
 import { getEmployerMembership } from "./employerOnboarding.service.js";
+import { createLogger } from "../../utils/logger.js";
+
+const logger = createLogger("auth.service");
 
 export { getEmployerMembership };
 
@@ -219,9 +222,16 @@ class AuthService {
   }
 
   async forgotPassword(email, originHeader = "http://localhost:5173") {
+    const GENERIC_RESPONSE = {
+      success: true,
+      message: "If an account exists for this email, a password reset link has been sent.",
+    };
+
     const user = await User.findOne({ email: email.toLowerCase() });
     if (!user) {
-      throw createError(404, "No user found with that email address.");
+      // Log server-side only — never expose user existence to the client
+      logger.warn(`Forgot password requested for non-existing email: ${email}`);
+      return GENERIC_RESPONSE;
     }
 
     const resetToken = generateResetToken();
@@ -235,9 +245,9 @@ class AuthService {
 
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
-        <h2 style="color: #1d4ed8; text-align: center;">MASAR Recruiter — Password Reset</h2>
+        <h2 style="color: #1d4ed8; text-align: center;">Naqla Recruiter — Password Reset</h2>
         <p>Hello,</p>
-        <p>We received a request to reset the password for your MASAR Recruiter account. Click the button below to continue:</p>
+        <p>We received a request to reset the password for your Naqla Recruiter account. Click the button below to continue:</p>
         <div style="text-align: center; margin: 30px 0;">
           <a href="${resetUrl}" style="background-color: #1d4ed8; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold; display: inline-block;">Reset Password</a>
         </div>
@@ -245,13 +255,13 @@ class AuthService {
         <p style="word-break: break-all; color: #666; font-size: 14px;">${resetUrl}</p>
         <p>This link is valid for 1 hour. If you did not request this, you can safely ignore this email.</p>
         <hr style="border: none; border-top: 1px solid #eee; margin-top: 30px;" />
-        <p style="font-size: 12px; color: #999; text-align: center;">MASAR Recruiter &copy; 2026. All rights reserved.</p>
+        <p style="font-size: 12px; color: #999; text-align: center;">Naqla Recruiter &copy; 2026. All rights reserved.</p>
       </div>
     `;
 
     const sent = await sendEmail({
       to: user.email,
-      subject: "MASAR Recruiter - Reset Your Password",
+      subject: "Naqla Recruiter - Reset Your Password",
       html,
     });
 
@@ -265,7 +275,7 @@ class AuthService {
       );
     }
 
-    return { success: true, message: "Password reset link sent to email." };
+    return GENERIC_RESPONSE;
   }
 
   async resetPassword(token, newPassword) {
