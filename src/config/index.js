@@ -10,7 +10,7 @@ dotenv.config({ path: path.join(__dirname, "../../.env") });
 export const config = {
   port: process.env.PORT || 5000,
   nodeEnv: process.env.NODE_ENV || "development",
-  mongoUri: process.env.NODE_ENV === "test" 
+  mongoUri: process.env.NODE_ENV === "test"
     ? (process.env.MONGO_URI_TEST || "mongodb://localhost:27017/recruitai_test")
     : (process.env.MONGO_URI || "mongodb://localhost:27017/recruitai"),
   redis: {
