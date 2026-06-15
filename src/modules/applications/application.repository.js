@@ -1,4 +1,5 @@
 import Application from "./application.model.js";
+import CandidateProfile from "../auth/candidateProfile.model.js";
 import { AppError } from "../../utils/error.js";
 
 /**
@@ -62,10 +63,22 @@ export const save = async (applicationInstance) => {
  */
 export const findApplicationsByJob = async (jobId, companyId, { page = 1, limit = 20 } = {}) => {
   const applications = await Application.find({ jobId, companyId })
-    .populate({ path: "candidateId", select: "name email profile.cvUrl" })
+    .populate({ path: "candidateId", select: "fullName email" })
     .lean()
     .skip((page - 1) * limit)
     .limit(limit);
+
+  if (applications.length > 0) {
+    const userIds = applications.map(app => app.candidateId?._id).filter(Boolean);
+    const profiles = await CandidateProfile.find({ userId: { $in: userIds } }).lean();
+    const profileMap = profiles.reduce((acc, p) => ({ ...acc, [p.userId.toString()]: p }), {});
+    
+    applications.forEach(app => {
+      if (app.candidateId) {
+        app.candidateId.profile = profileMap[app.candidateId._id.toString()];
+      }
+    });
+  }
 
   const total = await Application.countDocuments({ jobId });
 
@@ -124,9 +137,21 @@ export const updateScreeningStatus = async (applicationId, status) => {
  */
 export const getKanbanByJob = async (jobId, companyId) => {
   const applications = await Application.find({ jobId, companyId })
-    .populate({ path: "candidateId", select: "name email profile.cvUrl" })
+    .populate({ path: "candidateId", select: "fullName email" })
     .sort({ createdAt: -1 })
     .lean();
+
+  if (applications.length > 0) {
+    const userIds = applications.map(app => app.candidateId?._id).filter(Boolean);
+    const profiles = await CandidateProfile.find({ userId: { $in: userIds } }).lean();
+    const profileMap = profiles.reduce((acc, p) => ({ ...acc, [p.userId.toString()]: p }), {});
+    
+    applications.forEach(app => {
+      if (app.candidateId) {
+        app.candidateId.profile = profileMap[app.candidateId._id.toString()];
+      }
+    });
+  }
 
   const stages = {
     applied: [],
@@ -293,9 +318,17 @@ export const findCandidateApplications = async (candidateId) => {
  * Finds an application by ID with fully populated candidate, job, and company info.
  */
 export const findDetailsById = async (applicationId) => {
-  return await Application.findById(applicationId)
-    .populate({ path: "candidateId", select: "name email profile" })
+  const application = await Application.findById(applicationId)
+    .populate({ path: "candidateId", select: "fullName email" })
     .populate({ path: "jobId", select: "title location jobType employmentType" })
     .populate({ path: "companyId", select: "name logo website" })
-    .populate({ path: "interviewIds" });
+    .populate({ path: "interviewIds" })
+    .lean();
+
+  if (application && application.candidateId) {
+    const profile = await CandidateProfile.findOne({ userId: application.candidateId._id }).lean();
+    application.candidateId.profile = profile;
+  }
+
+  return application;
 };
