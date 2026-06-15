@@ -9,6 +9,7 @@ import {
   sendInterviewRescheduledEmail,
   sendInterviewCancelledEmail,
 } from "./interview.email.js";
+import notificationService from "../notifications/notification.service.js";
 
 /**
  * Create a new interview
@@ -101,6 +102,22 @@ export const createInterview = async (interviewData, schedulerId) => {
     location,
     notes,
   });
+
+  // Send real-time notification to candidate
+  try {
+    await notificationService.notify(candidate._id, {
+      type: "interview",
+      title: "Interview Scheduled",
+      message: `You have been invited to an interview for ${application.jobId?.title || "a position"} by ${application.companyId?.name || "a company"}.`,
+      data: {
+        interviewId: newInterview._id.toString(),
+        applicationId: applicationId.toString(),
+        jobId: jobId.toString(),
+      }
+    });
+  } catch (err) {
+    console.error("Failed to send interview notification", err);
+  }
 
   // 6. Queue AI Recommendation generation job (async)
   try {
@@ -271,6 +288,20 @@ export const updateInterview = async (id, updateData, userId) => {
     notes: interview.notes,
   });
 
+  // Send real-time notification to candidate
+  try {
+    await notificationService.notify(populated.candidateId._id, {
+      type: "interview",
+      title: "Interview Rescheduled",
+      message: `Your interview for ${populated.jobId.title} at ${populated.companyId.name} has been rescheduled.`,
+      data: {
+        interviewId: interview._id.toString(),
+      }
+    });
+  } catch (err) {
+    console.error("Failed to send interview rescheduled notification", err);
+  }
+
   // Re-trigger/queue recommendations generation
   try {
     await QueueService.addJob("background-tasks", "GENERATE_RECOMMENDATIONS", {
@@ -326,6 +357,20 @@ export const cancelInterview = async (id, notes, userId) => {
     jobTitle: interview.jobId.title,
     notes,
   });
+
+  // Send real-time notification to candidate
+  try {
+    await notificationService.notify(interview.candidateId._id, {
+      type: "interview",
+      title: "Interview Cancelled",
+      message: `Your interview for ${interview.jobId.title} at ${interview.companyId.name} has been cancelled.`,
+      data: {
+        interviewId: interview._id.toString(),
+      }
+    });
+  } catch (err) {
+    console.error("Failed to send interview cancelled notification", err);
+  }
 
   return interview;
 };

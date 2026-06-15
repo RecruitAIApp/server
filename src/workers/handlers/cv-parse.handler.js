@@ -5,6 +5,7 @@ import { getSignedCVDownloadUrl } from "../../modules/auth/cv.service.js";
 import { LLMFactory } from "../../modules/llm/llm.service.js";
 import { parsedCVSchema } from "../../modules/profiles/cv.validation.js";
 import { createLogger } from "../../utils/logger.js";
+import notificationService from "../../modules/notifications/notification.service.js";
 
 const logger = createLogger("cv-parse-handler");
 const llm = LLMFactory.create(process.env.LLM_PROVIDER || "groq");
@@ -127,6 +128,18 @@ export async function handleCVParse(data) {
       },
     });
     await profileService.syncProfileCompletion(profileId);
+    
+    // Notify candidate of fallback
+    try {
+      await notificationService.notify(profile.userId, {
+        type: "system",
+        title: "Resume Processing Issue",
+        message: "We couldn't automatically extract all data from your resume. Please check and manually update your profile.",
+      });
+    } catch (err) {
+      logger.error("Failed to send CV parse fallback notification", err);
+    }
+
     return; // don't re-throw — the job is "done" with a fallback
   }
 
@@ -145,6 +158,17 @@ export async function handleCVParse(data) {
   });
 
   await profileService.syncProfileCompletion(profileId);
+
+  // Notify candidate of success
+  try {
+    await notificationService.notify(profile.userId, {
+      type: "system",
+      title: "Resume Processed",
+      message: "Your resume has been successfully parsed and your profile is updated.",
+    });
+  } catch (err) {
+    logger.error("Failed to send CV parse success notification", err);
+  }
 
   logger.info(`Successfully parsed CV for profile ${profileId}`);
 }

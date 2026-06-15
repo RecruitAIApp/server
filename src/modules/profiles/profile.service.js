@@ -5,6 +5,8 @@ import cloudinary from "../../config/cloudinary.config.js";
 import { Readable } from "stream";
 import { createError } from "../../utils/error.js";
 import { enqueueResumeEmbedding } from "../vectorstore/candidate-embedding.service.js";
+import notificationService from "../notifications/notification.service.js";
+import EmployerProfile from "../auth/employerProfile.model.js";
 
 class ProfileService {
   /**
@@ -320,6 +322,26 @@ class ProfileService {
         viewedAt: new Date()
       });
       await profile.save();
+
+      // Send Profile View Notification
+      try {
+        const viewer = await User.findById(viewerId);
+        if (viewer && viewer.role === "employer") {
+          const employerProfile = await EmployerProfile.findOne({ userId: viewerId }).populate('companyId');
+          const companyName = employerProfile?.companyId?.name || "A company";
+          
+          await notificationService.notify(candidateId, {
+            type: "system",
+            title: "Profile Viewed",
+            message: `A recruiter from ${companyName} recently viewed your profile.`,
+            data: {
+              viewerId: viewerId.toString()
+            }
+          });
+        }
+      } catch (err) {
+        console.error("Failed to send profile view notification", err);
+      }
     }
 
     return {
