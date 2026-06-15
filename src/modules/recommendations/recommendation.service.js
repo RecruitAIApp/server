@@ -121,9 +121,43 @@ export async function getRecommendationsForCandidate(userId, options = {}) {
 
   let recommendations = [];
 
-  // Fallback to Skills-based matching if Vector Store returns empty
-  if (!vectorResults || vectorResults.length === 0) {
-    logger.info("No semantic job matches found in Vector Store. Falling back to skills-based matching.");
+  const jobIds = (vectorResults || []).map(res => res?.metadata?.jobId).filter(Boolean);
+  let jobs = [];
+
+  if (jobIds.length > 0) {
+    // 4. DB Filtering
+    // We query MongoDB to get job status and perform precise filter matching
+    const dbQuery = {
+      _id: { $in: jobIds },
+      status: "open"
+    };
+
+    if (location) {
+      dbQuery.location = { $regex: new RegExp(location.trim(), "i") };
+    }
+    if (employmentType) {
+      dbQuery.employmentType = employmentType.trim();
+    }
+    if (seniority) {
+      dbQuery.experienceLevel = seniority.trim();
+    }
+
+    logger.info(`Querying database for job IDs and applying filters: ${JSON.stringify(dbQuery)}`);
+    jobs = await Job.find(dbQuery).populate("company", "name logo industry description");
+
+    logger.info(`Database filtering completed. Remaining jobs count: ${jobs.length}`);
+
+    // Log rejected jobs from the vector matches
+    const foundJobIds = jobs.map(j => j._id.toString());
+    const rejectedJobIds = jobIds.filter(id => !foundJobIds.includes(id));
+    if (rejectedJobIds.length > 0) {
+      logger.info(`Rejected ${rejectedJobIds.length} vector matched jobs because they were closed, deleted, or did not match filters: ${JSON.stringify(rejectedJobIds)}`);
+    }
+  }
+
+  // Fallback to Skills-based matching if Vector Store returns empty OR DB returns no valid jobs
+  if (jobs.length === 0) {
+    logger.info("No valid semantic job matches found (or all matched jobs were closed/deleted). Falling back to skills-based matching.");
     
     // Fetch all open jobs
     const dbQuery = { status: "open" };
@@ -183,37 +217,6 @@ export async function getRecommendationsForCandidate(userId, options = {}) {
     return {
       recommendations: recommendations.slice(0, limit)
     };
-  }
-
-  const jobIds = vectorResults.map(res => res.metadata.jobId).filter(Boolean);
-  
-  // 4. DB Filtering
-  // We query MongoDB to get job status and perform precise filter matching
-  const dbQuery = {
-    _id: { $in: jobIds },
-    status: "open"
-  };
-
-  if (location) {
-    dbQuery.location = { $regex: new RegExp(location.trim(), "i") };
-  }
-  if (employmentType) {
-    dbQuery.employmentType = employmentType.trim();
-  }
-  if (seniority) {
-    dbQuery.experienceLevel = seniority.trim();
-  }
-
-  logger.info(`Querying database for job IDs and applying filters: ${JSON.stringify(dbQuery)}`);
-  const jobs = await Job.find(dbQuery).populate("company", "name logo industry description");
-
-  logger.info(`Database filtering completed. Remaining jobs count: ${jobs.length}`);
-
-  // Log rejected jobs from the vector matches
-  const foundJobIds = jobs.map(j => j._id.toString());
-  const rejectedJobIds = jobIds.filter(id => !foundJobIds.includes(id));
-  if (rejectedJobIds.length > 0) {
-    logger.info(`Rejected ${rejectedJobIds.length} vector matched jobs because they were closed, deleted, or did not match filters: ${JSON.stringify(rejectedJobIds)}`);
   }
 
   // 5. Score & Sort
