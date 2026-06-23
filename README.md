@@ -7,6 +7,7 @@
 > **This is the Backend (Server) side of the RecruitAI full-stack application.**
 > - 🖥️ **Backend Repository:** [RecruitAIApp/server](https://github.com/RecruitAIApp/server)
 > - 🎨 **Frontend Repository:** [RecruitAIApp/client](https://github.com/RecruitAIApp/client)
+> - 🌐 **Live Demo:** [RecruitAIApp/live-demo](https://naqla-recruiter.vercel.app/)
 
 ---
 
