@@ -35,6 +35,7 @@ export const config = {
   },
   llm: {
     google: {
+      project: process.env.GOOGLE_CLOUD_PROJECT,
       apiKey: process.env.GOOGLE_API_KEY,
       defaultModel: process.env.GOOGLE_DEFAULT_MODEL || "gemini-2.5-flash",
     },

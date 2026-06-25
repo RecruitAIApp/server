@@ -6,8 +6,9 @@ import crypto from "crypto";
 import config from "../../config/index.js";
 
 const embeddings = new GoogleGenerativeAIEmbeddings({
-  apiKey: config.llm.google.apiKey,
   modelName: config.embedding.model || "gemini-embedding-2",
+  project: config.llm.google.project,
+  apiKey: config.llm.google.apiKey,
 });
 
 const pinecone = new Pinecone({

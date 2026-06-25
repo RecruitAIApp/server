@@ -15,10 +15,11 @@ const PROVIDER_BUILDERS = Object.freeze({
   [PROVIDERS.GOOGLE](merged) {
     return new ChatGoogleGenerativeAI({
       model: merged.model,
-      apiKey: merged.apiKey,
       temperature: merged.temperature,
       maxOutputTokens: merged.maxOutputTokens,
       maxRetries: merged.maxRetries,
+      project: config.llm.google.project,
+      apiKey: merged.apiKey,
     });
   },
 
@@ -76,10 +77,10 @@ export const LLMFactory = Object.freeze({
       );
     }
 
-    if (!merged.apiKey) {
+    if (provider !== PROVIDERS.GOOGLE && !merged.apiKey) {
       throw new LLMConfigError(
         `Missing API key for provider "${provider}". 
-        Set the ${provider === PROVIDERS.GOOGLE ? "GOOGLE_API_KEY" : "GROQ_API_KEY"}  
+        Set the ${provider === PROVIDERS.GROQ ? "GROQ_API_KEY" : "OPENROUTER_API_KEY"}  
         environment variable or pass { apiKey } in the config.`,
       );
     }
