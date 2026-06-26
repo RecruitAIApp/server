@@ -7,7 +7,6 @@ import config from "../../config/index.js";
 
 const embeddings = new GoogleGenerativeAIEmbeddings({
   modelName: config.embedding.model || "gemini-embedding-2",
-  project: config.llm.google.project,
   apiKey: config.llm.google.apiKey,
 });
 

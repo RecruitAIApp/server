@@ -18,7 +18,6 @@ const PROVIDER_BUILDERS = Object.freeze({
       temperature: merged.temperature,
       maxOutputTokens: merged.maxOutputTokens,
       maxRetries: merged.maxRetries,
-      project: config.llm.google.project,
       apiKey: merged.apiKey,
     });
   },
